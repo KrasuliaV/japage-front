@@ -1,5 +1,7 @@
 import { useGameStore } from '@/stores/gameStore'
 import { useAuthStore } from '@/stores/authStore'
+import { CharacterModal } from '@/components/menu/CharacterModal'
+import { ZoneLoadingOverlay } from './ZoneLoadingOverlay'
 
 // ============================================================
 // HUD
@@ -11,7 +13,7 @@ export function HUD() {
   const character = useGameStore(s => s.character)
   const currentZone = useGameStore(s => s.currentZone)
   const openInventory = useGameStore(s => s.openInventory)
-  const openMastery = useGameStore(s => s.openMastery)
+  // const openMastery = useGameStore(s => s.openMastery)
   const logout = useAuthStore(s => s.logout)
   const currentScreen = useGameStore(s => s.currentScreen)
 
@@ -24,8 +26,8 @@ export function HUD() {
 
   const hpColor =
     hpPercent > 60 ? 'var(--color-hp-high)' :
-    hpPercent > 30 ? 'var(--color-hp-mid)' :
-    'var(--color-hp-low)'
+      hpPercent > 30 ? 'var(--color-hp-mid)' :
+        'var(--color-hp-low)'
 
   const zoneLabels: Record<string, string> = {
     OVERWORLD: '🗺 Overworld',
@@ -43,6 +45,10 @@ export function HUD() {
         pointerEvents: 'none',    // pass clicks through to canvas by default
       }}
     >
+      <div style={{ pointerEvents: 'auto' }}>
+        <CharacterModal />
+      </div>
+
       {/* ── Top-left: Character stats ─────────────────────── */}
       <div
         style={{
@@ -63,7 +69,8 @@ export function HUD() {
             marginBottom: 6,
           }}>
             <span style={{
-              fontSize: 10,
+              fontFamily: "'Nunito', sans-serif",
+              fontSize: 18,
               color: 'var(--color-accent)',
               textShadow: '0 0 6px var(--color-accent-glow)',
               letterSpacing: 1,
@@ -71,7 +78,8 @@ export function HUD() {
               {character.name}
             </span>
             <span style={{
-              fontSize: 9,
+              fontFamily: "'Nunito', sans-serif",
+              fontSize: 10,
               color: 'var(--color-gold)',
               marginLeft: 8,
             }}>
@@ -82,9 +90,11 @@ export function HUD() {
           {/* HP bar */}
           <div style={{ marginBottom: 4 }}>
             <div style={{
+              fontFamily: "'Nunito', sans-serif",
+              fontWeight: 900,
               display: 'flex',
               justifyContent: 'space-between',
-              fontSize: 8,
+              fontSize: 10,
               color: 'var(--color-text-secondary)',
               marginBottom: 2,
             }}>
@@ -104,9 +114,11 @@ export function HUD() {
           {/* XP bar */}
           <div style={{ marginBottom: 6 }}>
             <div style={{
+              fontFamily: "'Nunito', sans-serif",
+              fontWeight: 900,
               display: 'flex',
               justifyContent: 'space-between',
-              fontSize: 8,
+              fontSize: 10,
               color: 'var(--color-text-secondary)',
               marginBottom: 2,
             }}>
@@ -120,7 +132,9 @@ export function HUD() {
 
           {/* Gold */}
           <div style={{
-            fontSize: 9,
+            fontFamily: "'Nunito', sans-serif",
+            fontWeight: 900,
+            fontSize: 12,
             color: 'var(--color-gold)',
             textShadow: '0 0 6px var(--color-gold-glow)',
           }}>
@@ -138,7 +152,13 @@ export function HUD() {
           transform: 'translateX(-50%)',
         }}>
           <div className="game-panel" style={{ padding: '4px 12px' }}>
-            <span style={{ fontSize: 9, color: 'var(--color-text-secondary)' }}>
+            <span
+              style={{
+                fontFamily: "'Nunito', sans-serif",
+                fontWeight: 900,
+                fontSize: 14,
+                color: 'var(--color-text-secondary)'
+              }}>
               {zoneLabels[currentZone] || currentZone}
             </span>
           </div>
@@ -156,11 +176,12 @@ export function HUD() {
         pointerEvents: 'auto',
       }}>
         <button className="game-btn" onClick={openInventory} style={{ fontSize: 9 }}>
-          🎒 Inventory
+          👤 CHARACTER
+          {/* 🎒 Inventory */}
         </button>
-        <button className="game-btn" onClick={openMastery} style={{ fontSize: 9 }}>
+        {/* <button className="game-btn" onClick={openMastery} style={{ fontSize: 9 }}>
           📖 Mastery
-        </button>
+        </button> */}
         <button
           className="game-btn game-btn-danger"
           onClick={logout}
@@ -181,6 +202,9 @@ export function HUD() {
         WASD / ↑↓←→ to move
         {currentZone && currentZone !== 'OVERWORLD' && ' · ESC to exit dungeon'}
       </div>
+
+      <ZoneLoadingOverlay />
+
     </div>
   )
 }

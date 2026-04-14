@@ -1,17 +1,18 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useGameStore } from '@/stores/gameStore'
-import { characterApi } from '@/api/game'
-import type { CharacterClassResponse, CharacterResponse } from '@/types'
+import { characterApi, categoryApi } from '@/api/game'
+import type { CharacterClassResponse, CharacterResponse, Category } from '@/types'
+import { getApiErrorMessage } from '@/utils/games'
 
 interface CharacterCreateProps {
-  onSuccess: (character: CharacterResponse) => void
+  onSuccess: (data: { character: CharacterResponse; categories: Category[] }) => void;
 }
 
 export function CharacterCreate({ onSuccess }: CharacterCreateProps) {
-  const [name, setName]                       = useState('')
-  const [selectedClass, setSelectedClass]     = useState<CharacterClassResponse | null>(null)
-  const [error, setError]                     = useState<string | null>(null)
+  const [name, setName] = useState('')
+  const [selectedClass, setSelectedClass] = useState<CharacterClassResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   // playerId was set by App.tryLoadCharacter before navigating here
   const playerId = useGameStore(s => s.playerId)
@@ -22,19 +23,21 @@ export function CharacterCreate({ onSuccess }: CharacterCreateProps) {
   })
 
   const createMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!playerId) throw new Error('Player ID not set')
-      return characterApi.create(playerId, {
+      const character = await characterApi.create(playerId, {
         name: name.trim(),
         classId: selectedClass!.id,
       })
+      const categories = await categoryApi.getCategorisInfo(character.id);
+
+      return { character, categories };
     },
-    onSuccess: (character) => {
-      onSuccess(character)
+    onSuccess: (data) => {
+      onSuccess(data);
     },
     onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { message?: string } } })
-        ?.response?.data?.message
+      const msg = getApiErrorMessage(err)
       if (msg?.includes('already')) {
         setError('Character name already taken. Please choose another.')
       } else {
@@ -46,23 +49,23 @@ export function CharacterCreate({ onSuccess }: CharacterCreateProps) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-    if (!name.trim())    { setError('Please enter a character name.'); return }
+    if (!name.trim()) { setError('Please enter a character name.'); return }
     if (name.trim().length < 2) { setError('Name must be at least 2 characters.'); return }
-    if (!selectedClass)  { setError('Please select a character class.'); return }
-    if (!playerId)       { setError('Session error. Please log in again.'); return }
+    if (!selectedClass) { setError('Please select a character class.'); return }
+    if (!playerId) { setError('Session error. Please log in again.'); return }
     createMutation.mutate()
   }
 
   const CLASS_ICONS: Record<string, string> = {
-    'Code Wizard':     '🧙',
-    'Pattern Knight':  '⚔️',
-    'Refactor Rogue':  '🗡️',
+    'Code Wizard': '🧙',
+    'Pattern Knight': '⚔️',
+    'Refactor Rogue': '🗡️',
   }
 
   const CLASS_FLAVOR: Record<string, string> = {
-    'Code Wizard':     'Glass cannon. High mana & attack. ~8 wrong answers before defeat.',
-    'Pattern Knight':  'Tank. High HP & defense. Beginner-friendly. ~25 wrong answers.',
-    'Refactor Rogue':  'Balanced all-rounder. ~13 wrong answers before defeat.',
+    'Code Wizard': 'Glass cannon. High mana & attack. ~8 wrong answers before defeat.',
+    'Pattern Knight': 'Tank. High HP & defense. Beginner-friendly. ~25 wrong answers.',
+    'Refactor Rogue': 'Balanced all-rounder. ~13 wrong answers before defeat.',
   }
 
   return (
@@ -205,7 +208,7 @@ export function CharacterCreate({ onSuccess }: CharacterCreateProps) {
             <button
               type="submit"
               className="game-btn"
-              disabled={createMutation.isPending || !selectedClass || !name.trim()}
+              disabled={createMutation.isPending || !name.trim()}
               style={{ width: '100%', padding: '10px', fontSize: 10, letterSpacing: 2 }}
             >
               {createMutation.isPending ? 'FORGING HERO...' : 'BEGIN ADVENTURE →'}

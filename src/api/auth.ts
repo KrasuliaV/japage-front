@@ -33,7 +33,10 @@ export async function signup(data: LoginRequest): Promise<string> {
 // ============================================================
 export async function logout(): Promise<void> {
   try {
-    await authApi.post(`${AUTH_PATH}/logout`)
+    const token = tokenStore.get()
+    await authApi.post(`${AUTH_PATH}/logout`, {}, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
   } finally {
     tokenStore.clear()
   }

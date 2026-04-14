@@ -1,9 +1,10 @@
 import { create } from 'zustand'
+import { GameInitializer } from '@/services/gameInitializer'
 import type {
-  CharacterResponse, PatternResponse,
-  BattleResponse, NextQuestionResponse,
-  SubmitAnswerResponse, BattleSummaryResponse,
-  GameScreen,
+  CharacterResponse, PatternResponse, BattleResponse, NextQuestionResponse,
+  SubmitAnswerResponse, BattleSummaryResponse, GameScreen, EnemyType,
+  QuestionResponse, ItemResponse, TargetCave,
+  Category
 } from '@/types'
 
 // ============================================================
@@ -17,20 +18,27 @@ interface GameState {
   // ── Navigation ──────────────────────────────────────────
   currentScreen: GameScreen
 
+  categories: Category[]
+
   // ── Player data ──────────────────────────────────────────
   playerId: string | null
   character: CharacterResponse | null
+  coordinateX: number
+  coordinateY: number
 
   // ── World state ──────────────────────────────────────────
   // Set by Kaplay when player enters a dungeon
   currentZone: string | null       // 'CREATIONAL' | 'STRUCTURAL' | 'BEHAVIORAL'
   currentDungeonPatternId: string | null
+  targetCave: TargetCave | null
 
   // ── Battle state ─────────────────────────────────────────
   activeBattle: BattleResponse | null
   currentQuestion: NextQuestionResponse | null
   lastAnswerResult: SubmitAnswerResponse | null
   battleSummary: BattleSummaryResponse | null
+  enemyType: EnemyType | null
+  isRestoredBattle: boolean
 
   // ── UI flags ─────────────────────────────────────────────
   showBattleModal: boolean
@@ -39,29 +47,56 @@ interface GameState {
   showSummaryModal: boolean
   isGamePaused: boolean    // true when any React modal is open
 
+  showChestModal: boolean
+  showChestRewardModal: boolean
+  isChestAnswered: boolean
+  chestQuestion: QuestionResponse | null
+  chestReward: ItemResponse | null
+
+  /** True while zone-specific assets are being fetched before dungeon entry */
+  isZoneLoading: boolean
+  zoneLoadingTarget: string | null
+
   // ── Actions ──────────────────────────────────────────────
 
   // Navigation
   setScreen: (screen: GameScreen) => void
 
+  initializeGame: () => Promise<void>
+
   // Player/character
   setPlayerId: (id: string) => void
-  setCharacter: (character: CharacterResponse) => void
-  updateCharacterHp: (hp: number) => void
-  updateCharacterGold: (gold: number) => void
-  updateCharacterExp: (exp: number, level: number, expToNext: number) => void
+  setCharacter: (character: CharacterResponse | null) => void
+  // setMapStructure: () => void
+  // updateCharacterHp: (hp: number) => void
+  // updateCharacterGold: (gold: number) => void
+  // updateCharacterExp: (exp: number, level: number, expToNext: number) => void
 
   // Battle flow — called by Kaplay when player touches enemy
-  triggerBattle: (pattern: PatternResponse) => void
+  triggerBattle: (pattern?: PatternResponse) => void
   setBattle: (battle: BattleResponse) => void
   setCurrentQuestion: (question: NextQuestionResponse) => void
-  setLastAnswerResult: (result: SubmitAnswerResponse) => void
+  setLastAnswerResult: (result: SubmitAnswerResponse | null) => void
   setBattleSummary: (summary: BattleSummaryResponse) => void
   endBattle: () => void
+  onBattleWon: (() => void) | null
+  setEnemyType: (enemyType: EnemyType) => void
+  restoreBattle: (battle: BattleResponse, question: NextQuestionResponse, patternName: string) => void
+
+  // Chest flow — called by Kaplay when player touches chest
+  triggerChestBattle: (pattern?: PatternResponse) => void
+  closeChestModal: () => void
+  closeChestRewardModal: () => void
+  onChestAnswered: (() => void) | null
+  setChestQuestion: (question: QuestionResponse) => void
+  setChestReward: (question: ItemResponse) => void
 
   // Zone
   enterZone: (zone: string) => void
   exitZone: () => void
+
+  setTargetCave: (cave: TargetCave | null) => void
+  setCategories: (categories: Category[]) => void,
 
   // Modal toggles
   openInventory: () => void
@@ -74,6 +109,8 @@ interface GameState {
   pauseGame: () => void
   resumeGame: () => void
 
+  setZoneLoading: (loading: boolean, zone?: string | null) => void
+
   // Reset everything (on logout)
   reset: () => void
 }
@@ -84,6 +121,7 @@ const initialState = {
   character: null,
   currentZone: null,
   currentDungeonPatternId: null,
+  targetCave: null as TargetCave | null,
   activeBattle: null,
   currentQuestion: null,
   lastAnswerResult: null,
@@ -93,10 +131,27 @@ const initialState = {
   showMasteryModal: false,
   showSummaryModal: false,
   isGamePaused: false,
+  onBattleWon: null,
+  enemyType: 'MINION' as EnemyType,
+  showChestModal: false,
+  showChestRewardModal: false,
+  // chestReward: null as InventoryResponse | null,
+  isChestAnswered: false,
+  onChestAnswered: null,
+  chestQuestion: null,
+  chestReward: null as ItemResponse | null,
+  coordinateX: 0,
+  coordinateY: 0,
+  isRestoredBattle: false,
+  categories: [] as Category[],
+  isZoneLoading: false,
+  zoneLoadingTarget: null,
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
   ...initialState,
+
+  initializeGame: async () => GameInitializer.start(),
 
   setScreen: (screen) => set({ currentScreen: screen }),
 
@@ -104,28 +159,10 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setCharacter: (character) => set({ character }),
 
-  updateCharacterHp: (hp) => {
-    const { character } = get()
-    if (!character) return
-    set({ character: { ...character, currentHp: hp } })
-  },
-
-  updateCharacterGold: (gold) => {
-    const { character } = get()
-    if (!character) return
-    set({ character: { ...character, gold } })
-  },
-
-  updateCharacterExp: (exp, level, expToNextLevel) => {
-    const { character } = get()
-    if (!character) return
-    set({ character: { ...character, exp, level, expToNextLevel } })
-  },
-
   // ── Battle flow ────────────────────────────────────────
 
   // Called by Kaplay when player walks into an enemy
-  triggerBattle: (_pattern) => {
+  triggerBattle: () => {
     set({
       showBattleModal: true,
       isGamePaused: true,
@@ -138,8 +175,6 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setLastAnswerResult: (result) => {
     set({ lastAnswerResult: result })
-    // Update character HP from result
-    get().updateCharacterHp(result.characterHpCurrent)
   },
 
   setBattleSummary: (summary) => set({
@@ -148,21 +183,53 @@ export const useGameStore = create<GameState>((set, get) => ({
     showSummaryModal: true,
   }),
 
+  restoreBattle: (battle, question, patternName) => set({
+    activeBattle: battle,
+    currentQuestion: question,
+    currentDungeonPatternId: patternName,  // BattleModal uses this to find the pattern
+    isRestoredBattle: true,
+    showBattleModal: true,
+    isGamePaused: true,
+  }),
+
   endBattle: () => {
+    const { lastAnswerResult, activeBattle, character } = get()
+
+    const finalHp = lastAnswerResult?.characterHpCurrent
+      ?? activeBattle?.characterHpCurrent
+      ?? character?.currentHp
+
     set({
       activeBattle: null,
       currentQuestion: null,
       lastAnswerResult: null,
       showBattleModal: false,
       isGamePaused: false,
+      isRestoredBattle: false,
+      character: character ? {
+        ...character,
+        currentHp: finalHp ?? character.currentHp
+      } : null,
     })
   },
+
+  setEnemyType: (enemyType) => set({
+    enemyType: enemyType,
+  }),
 
   // ── Zone ────────────────────────────────────────────────
 
   enterZone: (zone) => set({ currentZone: zone }),
 
   exitZone: () => set({ currentZone: null }),
+
+  setTargetCave: (cave) => set({ targetCave: cave }),
+
+  setZoneLoading: (loading, zone = null) => set({
+    isZoneLoading: loading,
+    zoneLoadingTarget: zone ?? null,
+    isGamePaused: loading,   // pause game loop while loading
+  }),
 
   // ── Modals ──────────────────────────────────────────────
 
@@ -172,16 +239,49 @@ export const useGameStore = create<GameState>((set, get) => ({
   openMastery: () => set({ showMasteryModal: true, isGamePaused: true }),
   closeMastery: () => set({ showMasteryModal: false, isGamePaused: false }),
 
-  closeSummary: () => set({
-    showSummaryModal: false,
-    battleSummary: null,
-    isGamePaused: false,
+  closeSummary: () => {
+    set({
+      showSummaryModal: false,
+      battleSummary: null,
+      isGamePaused: false,
+      activeBattle: null,
+      currentQuestion: null,
+      lastAnswerResult: null,
+    })
+  },
+
+  // ── Chest flow ────────────────────────────────────────
+  triggerChestBattle: () => set({
+    showChestModal: true,
+    isGamePaused: true
   }),
 
+  closeChestModal: () => set({
+    showChestModal: false,
+    chestReward: null,
+    isGamePaused: false
+  }),
+
+  setChestQuestion: (question) => set({ chestQuestion: question }),
+
+  setChestReward: (reward) => set({
+    chestReward: reward,
+    showChestModal: false,
+    showChestRewardModal: true,
+  }),
+
+  closeChestRewardModal: () => set({
+    showChestRewardModal: false,
+    chestReward: null,
+    isGamePaused: false
+  })
+  ,
   // ── Kaplay pause/resume ─────────────────────────────────
 
   pauseGame: () => set({ isGamePaused: true }),
   resumeGame: () => set({ isGamePaused: false }),
+
+  setCategories: (categories) => set({ categories: categories }),
 
   // ── Reset ────────────────────────────────────────────────
 

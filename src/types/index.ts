@@ -2,14 +2,30 @@
 // Enums — mirror Java enums exactly
 // ============================================================
 
-export type PatternCategory = 'CREATIONAL' | 'STRUCTURAL' | 'BEHAVIORAL'
-export type SkillCategory   = 'CREATIONAL' | 'STRUCTURAL' | 'BEHAVIORAL' | 'GENERAL'
-export type QuestionType    = 'MULTIPLE_CHOICE' | 'PATTERN_RECOGNITION'
-export type AnswerType      = 'CORRECT' | 'WRONG'
-export type ItemType        = 'WEAPON' | 'ARMOR' | 'ACCESSORY'
-export type ItemRarity      = 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY'
-export type BattleStatus    = 'IN_PROGRESS' | 'WON' | 'LOST' | 'ABANDONED'
-export type QuestStatus     = 'AVAILABLE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+import { GameObj, Vec2 } from "kaplay";
+
+export const ALL_CATEGORIES = ['CREATIONAL', 'STRUCTURAL', 'BEHAVIORAL'] as const;
+
+// 2. Derive the type from the array's elements
+// export type Category = (typeof ALL_CATEGORIES)[number];
+export type SkillCategory = 'CREATIONAL' | 'STRUCTURAL' | 'BEHAVIORAL' | 'GENERAL'
+export type QuestionType = 'MULTIPLE_CHOICE' | 'PATTERN_RECOGNITION'
+export type AnswerType = 'CORRECT' | 'WRONG'
+export type ItemType = 'WEAPON' | 'ARMOR' | 'ACCESSORY'
+export type ItemRarity = 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY'
+export type BattleStatus = 'IN_PROGRESS' | 'WON' | 'LOST' | 'ABANDONED'
+export type QuestStatus = 'AVAILABLE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+export type EnemyType = 'MINION' | 'BOSS'
+export type CharacterState = 'INITIAL' | 'ADVENTURING' | 'BATTLE' | 'BATTLE_COMPLETE'
+export const SAFE_ZONE = 'OVERWORLD'
+
+
+export interface MinionObj extends GameObj { 
+  defeated: boolean; 
+  speed: number; 
+  direction: Vec2; 
+  directionTimer: number 
+}
 
 // ============================================================
 // Auth — from auth_proxy service
@@ -32,7 +48,6 @@ export interface UserInfo {
 export interface CreatePlayerRequest {
   username: string
   email: string
-  firebaseUid: string
 }
 
 export interface PlayerResponse {
@@ -93,10 +108,30 @@ export interface CharacterResponse {
   defense: number
   mana: number
   maxMana: number
-  equippedWeapon:    EquippedItemResponse | null
-  equippedArmor:     EquippedItemResponse | null
+  equippedWeapon: EquippedItemResponse | null
+  equippedArmor: EquippedItemResponse | null
   equippedAccessory: EquippedItemResponse | null
   createdAt: string
+  characterProgressResponse: CharacterProgressResponse
+}
+
+export interface CharacterProgressResponse {
+  state: CharacterState
+  zone: string
+  patternId: string
+  caveNumber: number
+  activeBattleId: string
+  defeatedEnemiesPerCave: number
+  caveBossDefeated: boolean
+  openedChestsPerZone: number
+  coordinateX: number
+  coordinateY: number
+}
+
+export interface AdventureRequest {
+  category: string
+  patternId: string
+  caveNumber: number
 }
 
 // ============================================================
@@ -108,6 +143,7 @@ export interface SkillResponse {
   name: string
   description: string
   category: SkillCategory
+  effectDescription: string
 }
 
 export interface CharacterSkillResponse {
@@ -124,7 +160,7 @@ export interface CharacterSkillResponse {
 export interface PatternResponse {
   id: string
   name: string
-  category: PatternCategory
+  category: Category
   difficulty: number
   description: string
   refactoringGuruUrl: string
@@ -148,6 +184,12 @@ export interface AnswerResponse {
   description: string
 }
 
+export interface SubmitQuestionResponse {
+  id: string
+  answerId: string
+  correct: boolean
+}
+
 export interface QuestionResponse {
   id: string
   description: string
@@ -162,6 +204,9 @@ export interface QuestionResponse {
 
 export interface StartBattleRequest {
   patternId: string
+  enemyType: EnemyType | null
+  coordinateX: number
+  coordinateY: number
 }
 
 export interface SubmitAnswerRequest {
@@ -176,6 +221,8 @@ export interface BattleResponse {
   status: BattleStatus
   characterHpStart: number
   characterHpCurrent: number
+  enemyHpStart: number
+  enemyHpCurrent: number
   xpEarned: number
   goldEarned: number
   goldLost: number
@@ -203,6 +250,7 @@ export interface SubmitAnswerResponse {
   correctAnswerDescription: string
   damageTaken: number
   characterHpCurrent: number
+  enemyHpCurrent: number
   questionsAnswered: number
   questionsCorrect: number
   battleEnded: boolean
@@ -230,6 +278,7 @@ export interface BattleSummaryResponse {
   goldEarned: number
   goldLost: number
   masteryLost: number
+  masteryAdd: number
   questionLog: BattleQuestionResponse[]
   startedAt: string
   endedAt: string
@@ -313,7 +362,7 @@ export interface ErrorResponse {
 export interface GameZone {
   id: string
   name: string
-  category: PatternCategory
+  category: Category
   tileset: string
   enemySprite: string
   x: number
@@ -323,12 +372,37 @@ export interface GameZone {
 }
 
 export interface EnemyDefinition {
-  patternId: string
+  // patternId: string
   patternName: string
   sprite: string
-  x: number
-  y: number
-  zone: PatternCategory
+  // x: number
+  // y: number
+  zone: string
+  battleIntro: string
+}
+
+export interface TargetCave {
+  zone: string
+  patternId: string
+  caveNumber: number
+  spawnX: number
+  spawnY: number
+  undefeatedMinionCount: number   // How many minions to spawn (0-5)
+  bossDefeated: boolean           // Whether to spawn the boss
+}
+
+export interface PatternOption {
+  id: string;
+  name: string;
+  sequenceNumber: number;
+  questionsNumber: number;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  isActive: boolean;
+  patterns: PatternOption[];
 }
 
 export type GameScreen =

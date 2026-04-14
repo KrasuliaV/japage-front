@@ -1,0 +1,5 @@
+export const MINION_COUNT = 5
+export const BOSS_SCALE_MULTIPLIER = 1.4
+export const MINION_SCALE_MULTIPLIER = 0.7
+export const BATTLE_INTRO_DURATION = 1500
+export const SAFE_SPAWN_RADIUS_TILES = 3

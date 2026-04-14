@@ -14,7 +14,7 @@ export function Login({ onNavigateToSignup, onSuccess }: LoginProps) {
 
   const loginMutation = useMutation({
     mutationFn: () => login({ email, password }),
-    onSuccess: async (token, email) => {
+    onSuccess: async (token) => {
       await onSuccess(token, email)
     },
     onError: () => {
