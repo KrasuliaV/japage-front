@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { signup } from '@/api/auth'
+import { playerApi } from '@/api/game'
+import { useGameStore } from '@/stores/gameStore'
 
 interface SignupProps {
   onNavigateToLogin: () => void
@@ -14,9 +16,19 @@ export function Signup({ onNavigateToLogin, onSuccess }: SignupProps) {
   const [error, setError]                     = useState<string | null>(null)
 
   const signupMutation = useMutation({
+    // mutationFn: (variables: { email: string; password: string }) => signup(variables),
     mutationFn: () => signup({ email, password }),
-    onSuccess: async (token, email) => {
+    onSuccess: async (token) => {
       await onSuccess(token, email)
+      const player = await playerApi.create({ 
+      email: email, 
+      username: email.split('@')[0] 
+    });
+    useGameStore.getState().setPlayerId(player.id)
+      // await playerApi.create({ 
+      //   email: variables.email,
+      //   username: variables.email.split('@')[0] // Default name from email prefix
+      // });
     },
     onError: (err: unknown) => {
       const status = (err as { response?: { status?: number } })?.response?.status
@@ -34,7 +46,7 @@ export function Signup({ onNavigateToLogin, onSuccess }: SignupProps) {
     if (!email || !password) { setError('Please fill in all fields.'); return }
     if (password !== confirmPassword) { setError('Passwords do not match.'); return }
     if (password.length < 6) { setError('Password must be at least 6 characters.'); return }
-    signupMutation.mutate()
+    signupMutation.mutate(email, password)
   }
 
   const inputStyle: React.CSSProperties = {

@@ -14,6 +14,9 @@ export function BattleSummary() {
   const updateCharacterGold = useGameStore(s => s.updateCharacterGold)
   const character        = useGameStore(s => s.character)
 
+
+  console.log("Summary Visibility:", showSummaryModal, "Data:", !!battleSummary);
+
   if (!showSummaryModal || !battleSummary || !character) return null
 
   const won  = battleSummary.status === 'WON'

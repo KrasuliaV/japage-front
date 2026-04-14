@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { initKaplay, SCENES } from '@/game/kaplay'
 import { registerOverworldScene } from '@/game/scenes/overworld'
-import { registerDungeonScenes } from '@/game/scenes/dungeon'
+import { registerDungeonScenes } from '@/game/scenes/creationalDungeon'
 import { useGameStore } from '@/stores/gameStore'
 
 // ============================================================
@@ -23,23 +23,18 @@ export function GameCanvas() {
     const k = initKaplay(canvasRef.current)
 
     // Register all scenes
-    registerOverworldScene(k)
-    registerDungeonScenes(k)
+    // document.fonts.ready.then(() => {
+      registerOverworldScene(k)
+      registerDungeonScenes(k)
+  // });
+
 
     // Start at overworld
     k.go(SCENES.OVERWORLD)
 
-    // Handle dungeon entrance collision from overworld
-    // This is set up here so k is in scope
-    k.onCollide('player', 'dungeon-entrance', (_player, entrance) => {
-      const zone = (entrance as unknown as { zone: string }).zone
-      const sceneName = `dungeon-${zone.toLowerCase()}`
-      useGameStore.getState().enterZone(zone)
-      k.go(sceneName)
-    })
-
     return () => {
       // Kaplay doesn't have a destroy — just let the canvas unmount
+      // k.quit();
     }
   }, [])
 
@@ -49,6 +44,7 @@ export function GameCanvas() {
   return (
     <canvas
       ref={canvasRef}
+      tabIndex={0}  
       style={{
         position: 'fixed',
         inset: 0,
@@ -57,6 +53,7 @@ export function GameCanvas() {
         zIndex: 0,
         display: isGameScreen ? 'block' : 'none',
         imageRendering: 'pixelated',
+        outline: 'none',
       }}
     />
   )

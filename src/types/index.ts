@@ -32,7 +32,6 @@ export interface UserInfo {
 export interface CreatePlayerRequest {
   username: string
   email: string
-  firebaseUid: string
 }
 
 export interface PlayerResponse {
@@ -162,6 +161,7 @@ export interface QuestionResponse {
 
 export interface StartBattleRequest {
   patternId: string
+  questionsToWin: number
 }
 
 export interface SubmitAnswerRequest {

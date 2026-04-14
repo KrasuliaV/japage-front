@@ -1,11 +1,13 @@
 import type kaplay from 'kaplay'
 import {
-  TILE_SIZE, PLAYER_SCALE, ENEMY_SCALE,
-  PLAYER_SPEED, SCENES, ZONE_COLORS,
+  TILE_SIZE, ENEMY_SCALE,
+  SCENES, ZONE_COLORS,
 } from '../kaplay'
 import { getEnemiesByZone, type EnemyDef } from '../entities/enemies'
 import { useGameStore } from '@/stores/gameStore'
 import type { PatternCategory } from '@/types'
+import { createPlayer, setupPlayerMovement } from '@/game/entities/player'
+import { addPortal } from '@/game/entities/portal'
 
 type KCtx = ReturnType<typeof kaplay>
 
@@ -19,15 +21,15 @@ type KCtx = ReturnType<typeof kaplay>
 // ============================================================
 
 const DUNGEON_MAP_CREATIONAL = [
-  '#############################',
+  'rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr',
+  'r...........................#',
+  'r...#######.....#######.....#',
+  'r...#.....#.....#.....#.....#',
+  'r...#..1..#.....#..2..#.....#',
+  'r...#.....#.....#.....#.....#',
+  'r...#######.....#######.....#',
   '#...........................#',
-  '#...#######.....#######.....#',
-  '#...#.....#.....#.....#.....#',
-  '#...#..1..#.....#..2..#.....#',
-  '#...#.....#.....#.....#.....#',
-  '#...#######.....#######.....#',
-  '#...........................#',
-  '#.......P...................#',
+  '#.......P................O..#',
   '#...........................#',
   '#...#######.....#######.....#',
   '#...#.....#.....#.....#.....#',
@@ -136,6 +138,10 @@ export function registerDungeonScenes(k: KCtx) {
             ])
           }
 
+          if (ch === 'O') {
+            addPortal(k, x, y, 'OVERWORLD', [100, 200, 100])
+          }
+
           if (ch === 'P') {
             playerSpawn = k.vec2(x, y)
           }
@@ -154,7 +160,7 @@ export function registerDungeonScenes(k: KCtx) {
       }
 
       // ── Player ──────────────────────────────────────────────
-      const player = createDungeonPlayer(k, playerSpawn)
+      const player = createPlayer(k, playerSpawn)
 
       // ── Camera follows player ─────────────────────────────────
       k.onUpdate(() => {
@@ -162,7 +168,7 @@ export function registerDungeonScenes(k: KCtx) {
       })
 
       // ── Movement ─────────────────────────────────────────────
-      setupDungeonMovement(k, player)
+      setupPlayerMovement(k, player)
 
       // ── Back to overworld (Escape key) ────────────────────────
       k.onKeyPress('escape', () => {
@@ -170,6 +176,15 @@ export function registerDungeonScenes(k: KCtx) {
           gameStore.exitZone()
           k.go(SCENES.OVERWORLD)
         }
+      })
+
+      k.onCollide('player', 'dungeon-entrance', (_player, entrance) => {
+        const zone = (entrance as unknown as { zone: string }).zone
+        const sceneName = zone === 'OVERWORLD'
+          ? 'overworld'
+          : `dungeon-${zone.toLowerCase()}`;
+        useGameStore.getState().enterZone(zone)
+        k.go(sceneName)
       })
     })
   }
@@ -241,10 +256,11 @@ function addEnemy(
 // ============================================================
 
 function showBattleIntro(k: KCtx, text: string, onDone: () => void) {
-  const cp = k.getCamPos(); 
+  const cp = k.getCamPos();
+  k.setCamPos(cp.x - 150, cp.y + 80)
   const dialogBg = k.add([
     k.rect(300, 60),
-    k.setCamPos(cp.x - 150, cp.y + 80),
+    k.pos(cp.x - 150, cp.y + 80),
     k.color(10, 14, 26),
     k.outline(2, k.Color.fromArray([0, 212, 170])),
     k.z(100),
@@ -252,8 +268,8 @@ function showBattleIntro(k: KCtx, text: string, onDone: () => void) {
   ])
 
   const dialogText = k.add([
-    k.text(text, { size: 6, font: 'pixel', width: 280 }),
-    k.setCamPos(cp.x - 140, cp.y + 88),
+    k.text(text, { size: 16, font: 'pixel', width: 280 }),
+    k.pos(cp.x - 140, cp.y + 88),
     k.color(232, 234, 240),
     k.z(101),
   ])
@@ -262,74 +278,5 @@ function showBattleIntro(k: KCtx, text: string, onDone: () => void) {
     k.destroy(dialogBg)
     k.destroy(dialogText)
     onDone()
-  })
-}
-
-// ============================================================
-// Dungeon player (same as overworld but with dungeon context)
-// ============================================================
-
-function createDungeonPlayer(k: KCtx, pos: ReturnType<typeof k.vec2>) {
-  return k.add([
-    k.sprite('player-idle', { anim: 'idle-down' }),
-    k.pos(pos),
-    k.scale(PLAYER_SCALE),
-    k.area({ shape: new k.Rect(k.vec2(4, 12), 24, 20) }),
-    k.body(),
-    k.anchor('center'),
-    k.z(10),
-    'player',
-    {
-      direction: 'down' as 'down' | 'up' | 'left' | 'right',
-      isMoving: false,
-      speed: PLAYER_SPEED,
-    },
-  ])
-}
-
-function setupDungeonMovement(
-  k: KCtx,
-  player: ReturnType<typeof createDungeonPlayer>
-) {
-  k.onUpdate(() => {
-    if (useGameStore.getState().isGamePaused) return
-
-    const vel = k.vec2(0, 0)
-
-    if (k.isKeyDown('left') || k.isKeyDown('a')) {
-      vel.x = -player.speed
-      player.direction = 'left'
-    } else if (k.isKeyDown('right') || k.isKeyDown('d')) {
-      vel.x = player.speed
-      player.direction = 'right'
-    }
-    if (k.isKeyDown('up') || k.isKeyDown('w')) {
-      vel.y = -player.speed
-      player.direction = 'up'
-    } else if (k.isKeyDown('down') || k.isKeyDown('s')) {
-      vel.y = player.speed
-      player.direction = 'down'
-    }
-
-    player.isMoving = vel.x !== 0 || vel.y !== 0
-
-    if (player.isMoving) {
-      player.move(vel)
-      try {
-        const walkAnim = `walk-${player.direction}`
-        if (player.getCurAnim()?.name !== walkAnim) {
-          player.use(k.sprite('player-walk'))
-          player.play(walkAnim)
-        }
-      } catch {/* swap in progress */}
-    } else {
-      try {
-        const idleAnim = `idle-${player.direction}`
-        if (player.getCurAnim()?.name !== idleAnim) {
-          player.use(k.sprite('player-idle'))
-          player.play(idleAnim)
-        }
-      } catch {/* swap in progress */}
-    }
   })
 }

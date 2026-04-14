@@ -31,6 +31,8 @@ interface GameState {
   currentQuestion: NextQuestionResponse | null
   lastAnswerResult: SubmitAnswerResponse | null
   battleSummary: BattleSummaryResponse | null
+  correctAnswersRequired: number | null
+  correctAnswersCount: number
 
   // ── UI flags ─────────────────────────────────────────────
   showBattleModal: boolean
@@ -58,6 +60,10 @@ interface GameState {
   setLastAnswerResult: (result: SubmitAnswerResponse) => void
   setBattleSummary: (summary: BattleSummaryResponse) => void
   endBattle: () => void
+  onBattleWon: (() => void) | null
+  setBattleRequirements: (correctNeeded: number | null) => void
+  incrementCorrectAnswers: () => void
+  resetCorrectAnswers: () => void
 
   // Zone
   enterZone: (zone: string) => void
@@ -93,6 +99,9 @@ const initialState = {
   showMasteryModal: false,
   showSummaryModal: false,
   isGamePaused: false,
+  onBattleWon: null,
+  correctAnswersRequired: null,
+  correctAnswersCount: 0,
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -137,9 +146,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   setCurrentQuestion: (question) => set({ currentQuestion: question }),
 
   setLastAnswerResult: (result) => {
-    set({ lastAnswerResult: result })
-    // Update character HP from result
-    get().updateCharacterHp(result.characterHpCurrent)
+    set({
+      lastAnswerResult: result,
+      ...(result !== null && {
+        characterHpCurrent: result.characterHpCurrent
+      })
+    })
   },
 
   setBattleSummary: (summary) => set({
@@ -157,6 +169,18 @@ export const useGameStore = create<GameState>((set, get) => ({
       isGamePaused: false,
     })
   },
+
+  // setBattleQuestionLimit: (limit: number | null) => set({ battleQuestionLimit: limit }),
+  setBattleRequirements: (correctNeeded) => set({
+    correctAnswersRequired: correctNeeded,
+    correctAnswersCount: 0,
+  }),
+
+  incrementCorrectAnswers: () => set(state => ({
+    correctAnswersCount: state.correctAnswersCount + 1
+  })),
+
+  resetCorrectAnswers: () => set({ correctAnswersCount: 0 }),
 
   // ── Zone ────────────────────────────────────────────────
 
