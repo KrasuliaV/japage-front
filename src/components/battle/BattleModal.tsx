@@ -1,45 +1,41 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useGameStore } from '@/stores/gameStore'
-import { battleApi, patternApi } from '@/api/game'
+import { battleApi, patternApi, characterApi } from '@/api/game'
+import { QuestionBlock } from '@/components/shared/QuestionBlock'
 import type {
   BattleResponse, NextQuestionResponse,
-  SubmitAnswerResponse, AnswerResponse,
+  SubmitAnswerResponse
 } from '@/types'
 
-// ============================================================
-// BattleModal
-// Opens when player touches an enemy in Kaplay.
-// Manages the full battle flow:
-//   1. Start battle (POST)
-//   2. Get next question (GET) — loops
-//   3. Submit answer (POST) — updates HP, checks win/loss
-//   4. Battle ends → open BattleSummary
-// ============================================================
-
 export function BattleModal() {
-  const showBattleModal      = useGameStore(s => s.showBattleModal)
-  const character            = useGameStore(s => s.character)
+  const showBattleModal = useGameStore(s => s.showBattleModal)
+  const character = useGameStore(s => s.character)
   const currentDungeonPatternId = useGameStore(s => s.currentDungeonPatternId)
-  const activeBattle         = useGameStore(s => s.activeBattle)
-  const currentQuestion      = useGameStore(s => s.currentQuestion)
-  const lastAnswerResult     = useGameStore(s => s.lastAnswerResult)
-  const setBattle            = useGameStore(s => s.setBattle)
-  const setCurrentQuestion   = useGameStore(s => s.setCurrentQuestion)
-  const setLastAnswerResult  = useGameStore(s => s.setLastAnswerResult)
-  const setBattleSummary     = useGameStore(s => s.setBattleSummary)
-  const endBattle            = useGameStore(s => s.endBattle)
+  const activeBattle = useGameStore(s => s.activeBattle)
+  const currentQuestion = useGameStore(s => s.currentQuestion)
+  const lastAnswerResult = useGameStore(s => s.lastAnswerResult)
+  const battle = useGameStore(s => s.activeBattle)
+  const setBattle = useGameStore(s => s.setBattle)
+  const setCurrentQuestion = useGameStore(s => s.setCurrentQuestion)
+  const setLastAnswerResult = useGameStore(s => s.setLastAnswerResult)
+  const setBattleSummary = useGameStore(s => s.setBattleSummary)
+  const endBattle = useGameStore(s => s.endBattle)
+  const enemyType = useGameStore(s => s.enemyType)
+  const coordinateX = useGameStore(s => s.coordinateX)
+  const coordinateY = useGameStore(s => s.coordinateY)
+  const setCharacter = useGameStore(s => s.setCharacter)
+  // const isRestoredBattle = useGameStore(s => s.isRestoredBattle)
 
   const [selectedAnswerId, setSelectedAnswerId] = useState<string | null>(null)
-  const [phase, setPhase] = useState<
-    'starting' | 'question' | 'result' | 'ended'
-  >('starting')
+  // const [phase, setPhase] = useState<'starting' | 'question' | 'result' | 'ended'>('starting')
+  const isRestoredBattle = useGameStore(s => s.isRestoredBattle)
+  const [phase, setPhase] = useState<'starting' | 'question' | 'result' | 'ended'>(
+    () => isRestoredBattle ? 'question' : 'starting'
+  )
   const [damageFlash, setDamageFlash] = useState(false)
   const [healFlash, setHealFlash] = useState(false)
-
-  if (!showBattleModal || !character) return null
-
-  // ── Step 1: Find pattern by name then start battle ─────────
+  const [apiError, setApiError] = useState<string | null>(null)
 
   const { data: allPatterns } = useQuery({
     queryKey: ['patterns'],
@@ -49,20 +45,41 @@ export function BattleModal() {
 
   const pattern = allPatterns?.find(p => p.name === currentDungeonPatternId)
 
-  // Start battle mutation
   const startBattleMutation = useMutation({
-    mutationFn: () => battleApi.start(character.id, { patternId: pattern!.id }),
+    // mutationFn: ({ patternId, enemyType }: { patternId: string, enemyType: EnemyType | null }) =>
+    //   battleApi.start(character!.id, { patternId, enemyType, coordinateX, coordinateY }),
+    mutationFn: () => {
+      if (!character?.id || !pattern?.id) {
+        throw new Error("Missing required battle data");
+      }
+      return battleApi.start(character.id, {
+        patternId: pattern.id,
+        enemyType,
+        coordinateX,
+        coordinateY
+      });
+    },
+
     onSuccess: (battle: BattleResponse) => {
       setBattle(battle)
       setPhase('question')
       fetchNextQuestion(battle.id)
     },
+    onError: (error: unknown) => {
+      const status = (error as { response?: { status?: number; data?: { message?: string } } })
+        ?.response?.status
+      const message = (error as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message
+
+      if (status === 422) {
+        setApiError(message ?? 'Battle cannot be started. Please try again.')
+      }
+    },
   })
 
-  // Get next question mutation
   const nextQuestionMutation = useMutation({
     mutationFn: (battleId: string) =>
-      battleApi.getNextQuestion(character.id, battleId),
+      battleApi.getNextQuestion(character!.id, battleId),
     onSuccess: (q: NextQuestionResponse) => {
       setCurrentQuestion(q)
       setSelectedAnswerId(null)
@@ -70,18 +87,46 @@ export function BattleModal() {
     },
   })
 
-  // Submit answer mutation
+  async function handleExit() {
+    endBattle()
+
+    setPhase('starting')
+    setSelectedAnswerId(null)
+    setLastAnswerResult(null)
+
+    if (character?.id) {
+      try {
+        const updatedCharacter = await characterApi.getById(character.id);
+        setCharacter(updatedCharacter);
+      } catch (error) {
+        console.error("Failed to sync character info:", error);
+      }
+    }
+
+    const canvas = document.querySelector('canvas')
+    canvas?.focus()
+  }
+
   const submitAnswerMutation = useMutation({
-    mutationFn: (data: { answerId: string }) =>
-      battleApi.submitAnswer(character.id, activeBattle!.id, {
+    mutationFn: (answerId: string) =>
+      battleApi.submitAnswer(character!.id, activeBattle!.id, {
         questionId: currentQuestion!.question.id,
-        answerId: data.answerId,
+        answerId: answerId,
       }),
     onSuccess: (result: SubmitAnswerResponse) => {
       setLastAnswerResult(result)
+
+      if (activeBattle) {
+        setBattle({
+          ...activeBattle,
+          characterHpCurrent: result.characterHpCurrent
+        })
+      }
+
+      const isBattleOver = result.battleEnded
+
       setPhase('result')
 
-      // Flash effect
       if (result.correct) {
         setHealFlash(true)
         setTimeout(() => setHealFlash(false), 400)
@@ -90,33 +135,67 @@ export function BattleModal() {
         setTimeout(() => setDamageFlash(false), 400)
       }
 
-      if (result.battleEnded && result.battleResult) {
+      if (isBattleOver) {
         setTimeout(async () => {
           setPhase('ended')
-          const summary = await battleApi.getSummary(
-            character.id, activeBattle!.id
-          )
-          setBattleSummary(summary)
+          const currentState = useGameStore.getState()
+          currentState.onBattleWon?.()
+
+          if (character?.id && activeBattle?.id) {
+            // if (result.battleResult && character?.id && activeBattle?.id) {
+            try {
+              try {
+                const updatedCharacter = await characterApi.getById(character.id);
+                setCharacter(updatedCharacter);
+              } catch (error) {
+                console.error("Failed to sync character info:", error);
+              }
+
+              const summary = await battleApi.getSummary(character!.id, activeBattle!.id)
+              setBattleSummary(summary)
+            } catch (err) {
+              console.error("Failed to fetch summary", err);
+              handleExit();
+            }
+          } else {
+            handleExit();
+          }
         }, 1800)
       }
     },
   })
 
-  // Auto-start battle when modal opens
   useEffect(() => {
-    if (showBattleModal && pattern && phase === 'starting') {
+    if (!showBattleModal || !character) return
+
+    // Normal flow — start a fresh battle
+    if (pattern && phase === 'starting' && !startBattleMutation.isPending) {
       startBattleMutation.mutate()
     }
-  }, [showBattleModal, pattern])
+  }, [showBattleModal, pattern, phase])
+
+  const prevShowBattleModal = useRef(false)
+
+  useEffect(() => {
+    if (prevShowBattleModal.current && !showBattleModal) {
+      setTimeout(() => {
+        setPhase('starting');
+        setSelectedAnswerId(null)
+      }, 0)
+    }
+    prevShowBattleModal.current = showBattleModal
+  }, [showBattleModal])
+
+  if (!showBattleModal || !character) return null
 
   function fetchNextQuestion(battleId: string) {
     nextQuestionMutation.mutate(battleId)
   }
 
-  function handleSelectAnswer(answer: AnswerResponse) {
+  function handleSelectAnswer(answerId: string) {
     if (phase !== 'question' || submitAnswerMutation.isPending) return
-    setSelectedAnswerId(answer.id)
-    submitAnswerMutation.mutate({ answerId: answer.id })
+    setSelectedAnswerId(answerId)
+    submitAnswerMutation.mutate(answerId)
   }
 
   function handleNextQuestion() {
@@ -126,303 +205,252 @@ export function BattleModal() {
 
   function handleAbandon() {
     if (!activeBattle) {
-      endBattle()
+      handleExit()
       return
     }
-    battleApi.abandon(character.id, activeBattle.id).then(() => {
-      endBattle()
+    battleApi.abandon(character!.id, activeBattle.id).finally(() => {
+      handleExit()
     })
   }
 
-  // ── Derived state ───────────────────────────────────────
+  function handleCloseApiError() {
+    setApiError(null)
+    setPhase('starting')
+    endBattle()
+
+    const canvas = document.querySelector('canvas')
+    canvas?.focus()
+  }
+
   const hpCurrent = lastAnswerResult?.characterHpCurrent
     ?? activeBattle?.characterHpCurrent
     ?? character.currentHp
-  const hpMax     = currentQuestion?.characterHpMax ?? character.maxHp
+  const hpMax = currentQuestion?.characterHpMax ?? character.maxHp
   const hpPercent = Math.max(0, (hpCurrent / hpMax) * 100)
-  const hpColor   =
+  const hpColor =
     hpPercent > 60 ? 'var(--color-hp-high)' :
-    hpPercent > 30 ? 'var(--color-hp-mid)' :
-    'var(--color-hp-low)'
+      hpPercent > 30 ? 'var(--color-hp-mid)' :
+        'var(--color-hp-low)'
 
-  const qNum   = currentQuestion?.questionNumber ?? 0
-  const qTotal = currentQuestion?.totalQuestions ?? 10
+  const qNum = currentQuestion?.questionNumber ?? 0
+  // const qTotal = currentQuestion?.totalQuestions ?? 2
+
+  // const enemyMaxHp = lastAnswerResult?.battleResult?.enemyHpStart ?? battle?.enemyHpStart ?? 0
+  const enemyMaxHp = battle?.enemyHpStart ?? 0
+  const enemyCurrentHp = lastAnswerResult?.enemyHpCurrent ?? battle?.enemyHpCurrent ?? 0
 
   return (
-    <div
-      className="modal-backdrop"
-      style={{ zIndex: 50 }}
-    >
-      {/* Flash overlays */}
-      {damageFlash && (
-        <div className="damage-flash" style={{
-          position: 'fixed', inset: 0, zIndex: 49, pointerEvents: 'none',
-        }} />
-      )}
-      {healFlash && (
-        <div className="heal-flash" style={{
-          position: 'fixed', inset: 0, zIndex: 49, pointerEvents: 'none',
-        }} />
-      )}
-
-      {/* Battle panel */}
-      <div
-        className="game-panel-elevated"
-        style={{
-          width: '100%',
-          maxWidth: 640,
-          margin: '0 16px',
-          padding: 24,
-          position: 'relative',
-        }}
-      >
-        {/* ── Header ─────────────────────────────────────── */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 16,
-        }}>
-          <div>
-            <div style={{
-              fontSize: 14,
-              color: 'var(--color-accent)',
-              textShadow: '0 0 8px var(--color-accent-glow)',
-              letterSpacing: 2,
-              marginBottom: 4,
-            }}>
-              ⚔ BATTLE
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
-              {pattern?.name ?? '...'} · {pattern?.category ?? ''}
-            </div>
-          </div>
-
-          {/* Question counter */}
-          <div style={{
-            fontSize: 10,
-            color: 'var(--color-text-muted)',
-            textAlign: 'right',
-          }}>
-            {qNum > 0 && `${qNum} / ${qTotal}`}
-          </div>
-        </div>
-
-        {/* ── HP Bar ─────────────────────────────────────── */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{
+    <>
+      {apiError && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
             display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: 9,
-            color: 'var(--color-text-secondary)',
-            marginBottom: 4,
-          }}>
-            <span>{character.name}</span>
-            <span style={{ color: hpColor }}>
-              {hpCurrent} / {hpMax} HP
-            </span>
-          </div>
-          <div className="hp-bar" style={{ height: 10 }}>
-            <div
-              className="hp-bar-fill"
-              style={{ width: `${hpPercent}%`, background: hpColor }}
-            />
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 200,
+          }}
+          onClick={() => handleCloseApiError()}
+        >
+          <div
+            className="game-panel-elevated"
+            style={{
+              padding: '24px 28px',
+              maxWidth: 380,
+              width: '90%',
+              position: 'relative',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => handleCloseApiError()}
+              style={{
+                position: 'absolute',
+                top: 10,
+                right: 12,
+                background: 'none',
+                border: 'none',
+                color: 'var(--color-text-muted)',
+                cursor: 'pointer',
+                fontSize: 18,
+                lineHeight: 1,
+                transition: 'color 0.2s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--color-danger)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
+            >
+              ✕
+            </button>
+
+            {/* Icon + title */}
+            <div style={{
+              fontSize: 13,
+              color: 'var(--color-danger)',
+              textShadow: '0 0 8px var(--color-danger-glow)',
+              letterSpacing: 2,
+              marginBottom: 12,
+            }}>
+              ⚠ BATTLE ERROR
+            </div>
+
+            {/* Message */}
+            <div style={{
+              fontSize: 11,
+              color: 'var(--color-text-secondary)',
+              lineHeight: 1.6,
+              marginBottom: 20,
+              fontFamily: '"Courier New", Courier, monospace',
+            }}>
+              {apiError}
+            </div>
+
+            {/* OK button */}
+            <button
+              className="game-btn"
+              onClick={() => handleCloseApiError()}
+              style={{ width: '100%' }}
+            >
+              OK, Continue
+            </button>
           </div>
         </div>
+      )}
+      {
+        showBattleModal && character && (
+          <div className="modal-backdrop" style={{ zIndex: 50 }}>
+            {damageFlash && <div className="damage-flash" style={{ position: 'fixed', inset: 0, zIndex: 49, pointerEvents: 'none' }} />}
+            {healFlash && <div className="heal-flash" style={{ position: 'fixed', inset: 0, zIndex: 49, pointerEvents: 'none' }} />}
 
-        <div className="pixel-divider" style={{ marginBottom: 16 }} />
+            <div className="game-panel-elevated" style={{ width: '100%', maxWidth: 640, margin: '0 16px', padding: 24, position: 'relative' }}>
 
-        {/* ── Loading ─────────────────────────────────────── */}
-        {(startBattleMutation.isPending || nextQuestionMutation.isPending) && (
-          <div style={{
-            textAlign: 'center',
-            padding: '32px 0',
-            color: 'var(--color-text-secondary)',
-            fontSize: 10,
-          }}>
-            Loading...
-          </div>
-        )}
-
-        {/* ── Question ────────────────────────────────────── */}
-        {phase === 'question' && currentQuestion && (
-          <QuestionBlock
-            question={currentQuestion}
-            selectedAnswerId={selectedAnswerId}
-            lastResult={null}
-            onSelect={handleSelectAnswer}
-            isPending={submitAnswerMutation.isPending}
-          />
-        )}
-
-        {/* ── Answer result ────────────────────────────────── */}
-        {phase === 'result' && currentQuestion && lastAnswerResult && (
-          <>
-            <QuestionBlock
-              question={currentQuestion}
-              selectedAnswerId={selectedAnswerId}
-              lastResult={lastAnswerResult}
-              onSelect={() => {}}
-              isPending={false}
-            />
-
-            {/* Result feedback */}
-            <div style={{ marginTop: 16 }}>
-              {lastAnswerResult.correct ? (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 4,
+              }}>
                 <div style={{
-                  fontSize: 11,
+                  fontFamily: "'Outfit', sans-serif",
+                  fontSize: 16,
                   color: 'var(--color-accent)',
-                  textShadow: '0 0 8px var(--color-accent-glow)',
-                  marginBottom: 8,
+                  textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                  letterSpacing: '1px',
+                  fontWeight: 600,
                 }}>
-                  ✓ Correct!
+                  ⚔ BATTLE
                 </div>
-              ) : (
-                <div style={{ marginBottom: 8 }}>
-                  <div style={{
-                    fontSize: 11,
-                    color: 'var(--color-danger)',
-                    textShadow: '0 0 8px var(--color-danger-glow)',
-                    marginBottom: 4,
-                  }}>
-                    ✗ Wrong! -{lastAnswerResult.damageTaken} HP
-                  </div>
-                  <div style={{
-                    fontSize: 9,
-                    color: 'var(--color-text-secondary)',
-                  }}>
-                    Correct answer: {lastAnswerResult.correctAnswerDescription}
-                  </div>
+
+                <button
+                  onClick={handleAbandon}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--color-text-muted)',
+                    cursor: 'pointer',
+                    fontSize: 18,
+                    padding: '4px',
+                    lineHeight: 1,
+                    transition: 'color 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-danger)'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-muted)'}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'baseline',
+                marginBottom: 16,
+              }}>
+                <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                  {pattern?.name ?? '...'} · {pattern?.category ?? ''}
                 </div>
+
+                <div style={{
+                  fontSize: 12,
+                  color: 'var(--color-text-muted)',
+                  fontFamily: '"Courier New", Courier, monospace',
+                }}>
+                  {qNum > 0 && `${enemyCurrentHp} / ${enemyMaxHp}`}
+                </div>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+                  <span>{character.name}</span>
+                  <span style={{ color: hpColor }}>{hpCurrent} / {hpMax} HP</span>
+                </div>
+                <div className="hp-bar" style={{ height: 10 }}>
+                  <div className="hp-bar-fill" style={{ width: `${hpPercent}%`, background: hpColor, transition: 'width 0.3s ease' }} />
+                </div>
+              </div>
+
+              <div className="pixel-divider" style={{ marginBottom: 16 }} />
+
+              {(startBattleMutation.isPending || nextQuestionMutation.isPending) && (
+                <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--color-text-secondary)', fontSize: 10 }}>Loading...</div>
               )}
 
-              {!lastAnswerResult.battleEnded && (
-                <button
-                  className="game-btn"
-                  onClick={handleNextQuestion}
-                  style={{ width: '100%', marginTop: 8 }}
-                >
-                  Next Question →
+              {phase === 'question' && currentQuestion && (
+                <QuestionBlock
+                  question={currentQuestion.question}
+                  selectedAnswerId={selectedAnswerId}
+                  lastResult={null}
+                  onSelect={handleSelectAnswer}
+                  isPending={submitAnswerMutation.isPending}
+                />
+              )}
+
+              {phase === 'result' && currentQuestion && lastAnswerResult && (
+                <>
+                  <QuestionBlock
+                    question={currentQuestion.question}
+                    selectedAnswerId={selectedAnswerId}
+                    lastResult={lastAnswerResult}
+                    onSelect={() => { }}
+                    isPending={false}
+                  />
+                  <div style={{ marginTop: 16 }}>
+                    {lastAnswerResult.correct ? (
+                      <div style={{ fontSize: 11, color: 'var(--color-accent)', textShadow: '0 0 8px var(--color-accent-glow)', marginBottom: 8 }}>✓ Correct!</div>
+                    ) : (
+                      <div style={{ marginBottom: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--color-danger)', textShadow: '0 0 8px var(--color-danger-glow)', marginBottom: 4 }}>✗ Wrong! -{lastAnswerResult.damageTaken} HP</div>
+                        <div style={{ fontSize: 9, color: 'var(--color-text-secondary)' }}>Correct answer: {lastAnswerResult.correctAnswerDescription}</div>
+                      </div>
+                    )}
+                    {!lastAnswerResult.battleEnded && (
+                      <button className="game-btn" onClick={handleNextQuestion} style={{ width: '100%', marginTop: 8 }}>Next Question →</button>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {phase === 'ended' && (
+                <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--color-text-secondary)', fontSize: 10 }}>Battle complete! Loading results...</div>
+              )}
+
+              {(startBattleMutation.isError || submitAnswerMutation.isError) && (
+                <div style={{ fontSize: 9, color: 'var(--color-danger)', marginTop: 8 }}>An error occurred. Please try again.</div>
+              )}
+
+              {phase !== 'ended' && (
+                <button className="game-btn game-btn-danger" onClick={handleAbandon} style={{ marginTop: 16, fontSize: 9, opacity: 0.7 }}>
+                  Flee Battle (lose gold)
                 </button>
               )}
             </div>
-          </>
-        )}
-
-        {/* ── Battle ended ─────────────────────────────────── */}
-        {phase === 'ended' && (
-          <div style={{
-            textAlign: 'center',
-            padding: '24px 0',
-            color: 'var(--color-text-secondary)',
-            fontSize: 10,
-          }}>
-            Battle complete! Loading results...
           </div>
-        )}
-
-        {/* ── Error ────────────────────────────────────────── */}
-        {(startBattleMutation.isError || submitAnswerMutation.isError) && (
-          <div style={{
-            fontSize: 9,
-            color: 'var(--color-danger)',
-            marginTop: 8,
-          }}>
-            An error occurred. Please try again.
-          </div>
-        )}
-
-        {/* ── Abandon button ───────────────────────────────── */}
-        {phase !== 'ended' && (
-          <button
-            className="game-btn game-btn-danger"
-            onClick={handleAbandon}
-            style={{ marginTop: 16, fontSize: 9, opacity: 0.7 }}
-          >
-            Flee Battle (lose gold)
-          </button>
-        )}
-      </div>
-    </div>
+        )
+      }
+    </>
   )
 }
 
-// ============================================================
-// QuestionBlock — renders the question and shuffled answers
-// ============================================================
 
-interface QuestionBlockProps {
-  question: NextQuestionResponse
-  selectedAnswerId: string | null
-  lastResult: SubmitAnswerResponse | null
-  onSelect: (answer: AnswerResponse) => void
-  isPending: boolean
-}
 
-function QuestionBlock({
-  question,
-  selectedAnswerId,
-  lastResult,
-  onSelect,
-  isPending,
-}: QuestionBlockProps) {
-  const q = question.question
-
-  function getAnswerClass(answer: AnswerResponse): string {
-    if (!lastResult) {
-      return selectedAnswerId === answer.id ? 'answer-btn selected' : 'answer-btn'
-    }
-    if (answer.id === lastResult.correctAnswerId) return 'answer-btn correct'
-    if (answer.id === selectedAnswerId && !lastResult.correct) return 'answer-btn wrong'
-    return 'answer-btn'
-  }
-
-  return (
-    <div>
-      {/* Difficulty */}
-      <div style={{
-        fontSize: 8,
-        color: 'var(--color-text-muted)',
-        marginBottom: 8,
-      }}>
-        {'★'.repeat(q.difficulty)}{'☆'.repeat(5 - q.difficulty)}
-        {' '}· {q.type.replace('_', ' ')}
-      </div>
-
-      {/* Question text */}
-      <div style={{
-        fontSize: 11,
-        color: 'var(--color-text-primary)',
-        lineHeight: 1.6,
-        marginBottom: 16,
-        padding: '12px 16px',
-        background: 'var(--color-bg-deep)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 2,
-      }}>
-        {q.description}
-      </div>
-
-      {/* Answer options */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {q.answers.map((answer, i) => (
-          <button
-            key={answer.id}
-            className={getAnswerClass(answer)}
-            onClick={() => onSelect(answer)}
-            disabled={isPending || lastResult !== null}
-          >
-            <span style={{
-              color: 'var(--color-text-muted)',
-              marginRight: 8,
-              fontSize: 9,
-            }}>
-              {String.fromCharCode(65 + i)}.
-            </span>
-            {answer.description}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}

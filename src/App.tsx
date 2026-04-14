@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useAuthStore } from '@/stores/authStore'
 import { useGameStore } from '@/stores/gameStore'
-import { characterApi, playerApi } from '@/api/game'
 import { validateToken } from '@/api/auth'
 import { GameCanvas } from '@/components/GameCanvas'
 import { HUD } from '@/components/hud/HUD'
 import { BattleModal } from '@/components/battle/BattleModal'
 import { BattleSummary } from '@/components/battle/BattleSummary'
+import { ChestModal } from '@/components/chest/ChestModal'
+import { ChestRewardModal } from '@/components/chest/ChestRewardModal'
 import { Login } from '@/pages/Login'
 import { Signup } from '@/pages/Signup'
 import { CharacterCreate } from '@/pages/CharacterCreate'
@@ -31,66 +32,53 @@ export default function App() {
 }
 
 function AppInner() {
+  console.log('[App] AppInner render. currentScreen:', useGameStore(s => s.currentScreen))
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
-  const isLoading       = useAuthStore(s => s.isLoading)
-  const setEmailAndToken        = useAuthStore(s => s.setEmailAndToken)
-  const setUserInfo     = useAuthStore(s => s.setUserInfo)
-  const restoreSession  = useAuthStore(s => s.restoreSession)
+  const isLoading = useAuthStore(s => s.isLoading)
+  const setEmailAndToken = useAuthStore(s => s.setEmailAndToken)
+  const setUserInfo = useAuthStore(s => s.setUserInfo)
+  const restoreSession = useAuthStore(s => s.restoreSession)
 
   const currentScreen = useGameStore(s => s.currentScreen)
-  const setScreen     = useGameStore(s => s.setScreen)
-  const setCharacter  = useGameStore(s => s.setCharacter)
-  const setPlayerId   = useGameStore(s => s.setPlayerId)
+  const setScreen = useGameStore(s => s.setScreen)
+  const setCharacter = useGameStore(s => s.setCharacter)
+  const initializeGame = useGameStore(s => s.initializeGame);
 
   const [authPage, setAuthPage] = useState<'login' | 'signup'>('login')
-    async function tryLoadCharacter() {
-    try {
-      const exists = await playerApi.existsByFirebaseUid()
 
-      if (!exists) {
-        setScreen('character-create')
-        return
-      }
-
-      const player = await playerApi.getByFirebaseUid()
-      setPlayerId(player.id)
-
-      try {
-        const character = await characterApi.getByPlayerId(player.id)
-        setCharacter(character)
-        setScreen('overworld')
-      } catch {
-        setScreen('character-create')
-      }
-    } catch (err) {
-      console.error('[App] Failed to load player/character:', err)
-      setScreen('character-create')
-    }
-  }
+  const initRef = useRef(false)
 
   useEffect(() => {
-    restoreSession().then(async (restored) => {
-      if (!restored) {
+    if (initRef.current) return
+    initRef.current = true
+    // This runs ONCE on mount
+    const boot = async () => {
+      console.log('[App] 🚀 Boot started')
+      try {
+        const user = await restoreSession();
+        console.log('[App] ✓ Session restored:', user?.userId)
+        if (user?.userId) {
+          console.log('[App] 🎮 Initializing game...')
+          await initializeGame();
+          console.log('[App] ✓ Game initialized. Screen:', useGameStore.getState().currentScreen)
+        } else {
+          setScreen('login')
+        }
+      } catch (err) {
+        console.error('[App] Boot failed:', err)
         setScreen('login')
-        return
       }
-      const { userInfo } = useAuthStore.getState()
-      if (userInfo?.userId) {
-        await tryLoadCharacter()
-      } else {
-        setScreen('login')
-      }
-    })
-  }, [])
-
-
+    };
+    boot();
+  }, []);
 
   async function handleAuthSuccess(token: string, email: string) {
     setEmailAndToken(token, email)
     try {
       const userInfo = await validateToken()
       setUserInfo(userInfo)
-      await tryLoadCharacter()
+      // await tryLoadCharacter()
+      await initializeGame()
     } catch (err) {
       console.error('[App] Failed to validate token after login:', err)
       setScreen('login')
@@ -161,6 +149,8 @@ function AppInner() {
       <HUD />
       <BattleModal />
       <BattleSummary />
+      <ChestModal />
+      <ChestRewardModal />
     </div>
   )
 }

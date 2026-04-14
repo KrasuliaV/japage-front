@@ -1,15 +1,12 @@
 import { gameApi } from './client'
 import type {
-  PlayerResponse, CreatePlayerRequest,
-  CharacterResponse, CharacterClassResponse,
-  CreateCharacterRequest,
-  CharacterSkillResponse, InventoryResponse,
-  PatternResponse, PatternMasteryResponse,
-  BattleResponse, StartBattleRequest,
-  NextQuestionResponse, SubmitAnswerRequest,
-  SubmitAnswerResponse, BattleSummaryResponse,
-  QuestResponse, CharacterQuestResponse,
-  PatternCategory, QuestStatus,
+  PlayerResponse, CreatePlayerRequest, CharacterResponse, CharacterClassResponse,
+  CreateCharacterRequest, CharacterSkillResponse, InventoryResponse,
+  PatternResponse, PatternMasteryResponse, BattleResponse, StartBattleRequest,
+  NextQuestionResponse, SubmitAnswerRequest, SubmitAnswerResponse,
+  BattleSummaryResponse, QuestResponse, CharacterQuestResponse, PatternCategory,
+  QuestStatus, SubmitQuestionResponse, QuestionResponse, ItemResponse,
+  AdventureRequest,
 } from '@/types'
 
 // ============================================================
@@ -65,6 +62,18 @@ export const characterApi = {
   unequipItem: (characterId: string, itemId: string) =>
     gameApi.delete<CharacterResponse>(`/api/v1/characters/${characterId}/equip/${itemId}`)
       .then(r => r.data),
+  addItemToInventory: (characterId: string, itemId: string) =>
+    gameApi.post<void>(`/api/v1/inventory/${characterId}/${itemId}`)
+      .then(() => { }),
+  removeItemFromInventory: (characterId: string, itemId: string) =>
+    gameApi.delete<InventoryResponse>(`/api/v1/inventory/${characterId}/${itemId}`)
+      .then(r => r.data),
+  startAdventuring: (characterId: string, data: AdventureRequest) =>
+    gameApi.post<void>(`/api/v1/characters/${characterId}/adventure`, data)
+      .then(() => { }),
+  backToSafe: (characterId: string) =>
+    gameApi.post<void>(`/api/v1/characters/${characterId}/safe`)
+      .then(() => { }),
 }
 
 // ============================================================
@@ -98,6 +107,11 @@ export const battleApi = {
   start: (characterId: string, data: StartBattleRequest) =>
     gameApi.post<BattleResponse>(
       `/api/v1/characters/${characterId}/battles`, data
+    ).then(r => r.data),
+
+  getActiveBattle: (characterId: string) =>
+    gameApi.get<BattleResponse>(
+      `/api/v1/characters/${characterId}/battles/active`
     ).then(r => r.data),
 
   getHistory: (characterId: string) =>
@@ -145,3 +159,37 @@ export const questApi = {
       `/api/v1/characters/${characterId}/quests/${questId}/accept`
     ).then(r => r.data),
 }
+
+export const questionApi = {
+  getQuestion: (category: string, subCategory?: string, limit: number = 1) =>
+    gameApi.get<QuestResponse[]>(
+      '/api/v1/question',
+      {
+        params: {
+          category,
+          ...(subCategory ? { subCategory } : {}),
+          limit
+        }
+      }
+    ).then(r => {
+      const list = r.data as unknown as QuestionResponse[]
+      if (!list || list.length === 0) throw new Error('No question returned')
+      return list[0]
+    }),
+
+  // submitAnswer: (data: SubmitAnswerRequest) =>
+  //   gameApi.post<SubmitQuestionResponse>(
+  //     `/api/v1/question/answer`, data
+  //   ).then(r => r.data),
+  submitAnswer: (questionId: string, answerId: string) =>
+    gameApi.post<SubmitQuestionResponse>('/api/v1/question/answer', {
+      questionId,
+      answerId,
+    }).then(r => r.data),
+}
+
+export const itemApi = {
+  getRandom: () =>
+    gameApi.get<ItemResponse>('/api/v1/item/random').then(r => r.data),
+}
+

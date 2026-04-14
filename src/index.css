@@ -1,4 +1,7 @@
+/* @import "tailwindcss"; */
+
 :root {
+  --font-main: 'pixel', monospace;
   --text: #6b6375;
   --text-h: #08060d;
   --bg: #fff;
@@ -21,9 +24,10 @@
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  text-rendering: pixelated;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: none;
+  font-smooth: never;
 
   @media (max-width: 1024px) {
     font-size: 16px;
@@ -51,8 +55,8 @@
 }
 
 #root {
-  width: 1126px;
-  max-width: 100%;
+  /* width: 1126px;
+  max-width: 100%; */
   margin: 0 auto;
   text-align: center;
   border-inline: 1px solid var(--border);
@@ -63,6 +67,10 @@
 }
 
 body {
+  font-family: var(--font-main);
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: none;
+  text-rendering: crisp-edges;
   margin: 0;
 }
 
@@ -77,20 +85,24 @@ h1 {
   font-size: 56px;
   letter-spacing: -1.68px;
   margin: 32px 0;
+
   @media (max-width: 1024px) {
     font-size: 36px;
     margin: 20px 0;
   }
 }
+
 h2 {
   font-size: 24px;
   line-height: 118%;
   letter-spacing: -0.24px;
   margin: 0 0 8px;
+
   @media (max-width: 1024px) {
     font-size: 20px;
   }
 }
+
 p {
   margin: 0;
 }
@@ -108,4 +120,443 @@ code {
   line-height: 135%;
   padding: 4px 8px;
   background: var(--code-bg);
+}
+
+@layer base {
+  :root {
+    /* Core palette */
+    --color-bg-deep: #0a0e1a;
+    --color-bg-dark: #0f1523;
+    --color-bg-panel: #151c2e;
+    --color-bg-elevated: #1a2238;
+
+    /* Accent — teal/green glow (pattern mastery color) */
+    --color-accent: #00d4aa;
+    --color-accent-dim: #00a882;
+    --color-accent-glow: rgba(0, 212, 170, 0.25);
+
+    /* Danger — red (damage, wrong answers) */
+    --color-danger: #e84040;
+    --color-danger-dim: #b83030;
+    --color-danger-glow: rgba(232, 64, 64, 0.25);
+
+    /* Gold — rewards, XP, items */
+    --color-gold: #f0c040;
+    --color-gold-dim: #c09820;
+    --color-gold-glow: rgba(240, 192, 64, 0.25);
+
+    /* Mana — blue/purple */
+    --color-mana: #6080f0;
+    --color-mana-dim: #4060c0;
+
+    /* Text */
+    --color-text-primary: #e8eaf0;
+    --color-text-secondary: #8890a8;
+    --color-text-muted: #4a5270;
+
+    /* Borders */
+    --color-border: #2a3450;
+    --color-border-bright: #3a4870;
+
+    /* HP bar */
+    --color-hp-high: #40c060;
+    --color-hp-mid: #d0a020;
+    --color-hp-low: #e84040;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html,
+  body,
+  #root {
+    width: 1126px;
+    max-width: 100%;
+    /* width: 100%; */
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--color-bg-deep);
+    color: var(--color-text-primary);
+    font-family: 'pixel', 'Courier New', 'NormalFont', 'Press Start 2P', monospace;
+  }
+
+  /* Pixel font */
+  @font-face {
+    font-family: 'pixel';
+    src: url('/assets/fonts/NormalFont.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  /* Pixel-perfect rendering for game canvas */
+  canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--color-bg-dark);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-bright);
+    border-radius: 3px;
+  }
+}
+
+/* ============================================================
+   Reusable game UI utilities
+   ============================================================ */
+
+@layer components {
+
+  /* Panel — dark bordered box */
+  .game-panel {
+    background: var(--color-bg-panel);
+    border: 2px solid var(--color-border);
+    border-radius: 4px;
+    image-rendering: pixelated;
+  }
+
+  .game-panel-elevated {
+    background: var(--color-bg-elevated);
+    border: 2px solid var(--color-border-bright);
+    border-radius: 4px;
+    font-family: 'Inter', sans-serif;
+    /* Primary UI */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .pattern-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+  }
+
+  /* Glow effects */
+  .glow-accent {
+    box-shadow: 0 0 12px var(--color-accent-glow),
+      0 0 24px var(--color-accent-glow);
+  }
+
+  .glow-danger {
+    box-shadow: 0 0 12px var(--color-danger-glow),
+      0 0 24px var(--color-danger-glow);
+  }
+
+  .glow-gold {
+    box-shadow: 0 0 12px var(--color-gold-glow),
+      0 0 24px var(--color-gold-glow);
+  }
+
+  /* Text glow */
+  .text-glow-accent {
+    color: var(--color-accent);
+    text-shadow: 0 0 8px var(--color-accent-glow);
+  }
+
+  .text-glow-gold {
+    color: var(--color-gold);
+    text-shadow: 0 0 8px var(--color-gold-glow);
+  }
+
+  .text-glow-danger {
+    color: var(--color-danger);
+    text-shadow: 0 0 8px var(--color-danger-glow);
+  }
+
+  /* HP Bar */
+  .hp-bar {
+    height: 8px;
+    background: var(--color-bg-deep);
+    border: 1px solid var(--color-border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .hp-bar-fill {
+    height: 100%;
+    transition: width 0.3s ease, background-color 0.3s ease;
+    border-radius: 2px;
+  }
+
+  /* XP Bar */
+  .xp-bar {
+    height: 4px;
+    background: var(--color-bg-deep);
+    border: 1px solid var(--color-border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .xp-bar-fill {
+    height: 100%;
+    background: var(--color-mana);
+    transition: width 0.5s ease;
+    border-radius: 2px;
+  }
+
+  /* Game button */
+  .game-btn {
+    background: var(--color-bg-elevated);
+    border: 2px solid var(--color-border-bright);
+    color: var(--color-text-primary);
+    padding: 8px 16px;
+    /* font-family: inherit; */
+    font-family: "'Nunito', sans-serif";
+    font-weight: 900;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    image-rendering: pixelated;
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .game-btn:hover {
+    background: var(--color-accent);
+    color: var(--color-bg-deep);
+    border-color: var(--color-accent);
+    box-shadow: 0 0 12px var(--color-accent-glow);
+  }
+
+  .game-btn:active {
+    transform: translateY(1px);
+  }
+
+  .game-btn-danger:hover {
+    background: var(--color-danger);
+    border-color: var(--color-danger);
+    box-shadow: 0 0 12px var(--color-danger-glow);
+  }
+
+  /* Answer button — battle screen */
+  .answer-btn {
+    width: 100%;
+    background: var(--color-bg-elevated);
+    border: 2px solid var(--color-border);
+    color: var(--color-text-primary);
+    padding: 12px 16px;
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+    border-radius: 2px;
+    line-height: 1.5;
+  }
+
+  .answer-btn:hover:not(:disabled) {
+    border-color: var(--color-accent);
+    background: rgba(0, 212, 170, 0.08);
+    box-shadow: 0 0 8px var(--color-accent-glow);
+  }
+
+  .answer-btn.correct {
+    border-color: var(--color-accent);
+    background: rgba(0, 212, 170, 0.15);
+    box-shadow: 0 0 12px var(--color-accent-glow);
+  }
+
+  .answer-btn.wrong {
+    border-color: var(--color-danger);
+    background: rgba(232, 64, 64, 0.15);
+    box-shadow: 0 0 12px var(--color-danger-glow);
+  }
+
+  .answer-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  /* Pixel divider */
+  .pixel-divider {
+    height: 2px;
+    background: repeating-linear-gradient(90deg,
+        var(--color-border) 0px,
+        var(--color-border) 4px,
+        transparent 4px,
+        transparent 8px);
+  }
+
+  .inventory-header {
+    font-family: 'Outfit', sans-serif;
+    /* Sharp, clean headers */
+    font-weight: 700;
+    letter-spacing: 2px;
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+    /* Modern polish: subtle blur */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    /* Ensure it blocks clicks to the canvas */
+  }
+
+  /* The "Elevated" panel look for the Inventory */
+  .game-panel-elevated {
+    background: var(--color-bg-deep);
+    border: 2px solid var(--color-border);
+    border-radius: 12px;
+    /* Smoother, modern corners */
+    font-family: 'Nunito', sans-serif;
+    /* Smooth body font */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
+
+  .close-btn-simple {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 20px;
+    cursor: pointer;
+    transition: color 0.2s, transform 0.2s;
+  }
+
+  .close-btn-simple:hover {
+    color: var(--color-danger);
+    transform: scale(1.1);
+  }
+
+  .mastery-card:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: var(--color-accent);
+    transform: translateY(-2px);
+  }
+
+  /* Damage flash overlay */
+  @keyframes damage-flash {
+    0% {
+      background: rgba(232, 64, 64, 0.4);
+    }
+
+    100% {
+      background: transparent;
+    }
+  }
+
+  .damage-flash {
+    animation: damage-flash 0.4s ease-out forwards;
+  }
+
+  /* Heal flash overlay */
+  @keyframes heal-flash {
+    0% {
+      background: rgba(0, 212, 170, 0.3);
+    }
+
+    100% {
+      background: transparent;
+    }
+  }
+
+  .heal-flash {
+    animation: heal-flash 0.4s ease-out forwards;
+  }
+
+  /* Level up animation */
+  @keyframes level-up {
+    0% {
+      transform: scale(1);
+      opacity: 1;
+    }
+
+    50% {
+      transform: scale(1.2);
+      opacity: 1;
+    }
+
+    100% {
+      transform: scale(1);
+      opacity: 0;
+    }
+  }
+
+  .level-up-text {
+    animation: level-up 1.5s ease-out forwards;
+    color: var(--color-gold);
+    text-shadow: 0 0 12px var(--color-gold-glow);
+    font-size: 18px;
+    font-weight: bold;
+    pointer-events: none;
+  }
+
+  /* Floating damage number */
+  @keyframes float-up {
+    0% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    100% {
+      transform: translateY(-40px);
+      opacity: 0;
+    }
+  }
+
+  .float-damage {
+    animation: float-up 1s ease-out forwards;
+    color: var(--color-danger);
+    font-size: 16px;
+    font-weight: bold;
+    pointer-events: none;
+    position: absolute;
+    text-shadow: 0 0 8px var(--color-danger-glow);
+  }
+
+  /* Modal backdrop */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(2px);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Screen overlay for full-screen transitions */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fade-out {
+    from {
+      opacity: 1;
+    }
+
+    to {
+      opacity: 0;
+    }
+  }
+
+  .screen-fade-in {
+    animation: fade-in 0.3s ease forwards;
+  }
+
+  .screen-fade-out {
+    animation: fade-out 0.3s ease forwards;
+  }
 }

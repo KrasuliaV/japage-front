@@ -3,13 +3,15 @@
 // ============================================================
 
 export type PatternCategory = 'CREATIONAL' | 'STRUCTURAL' | 'BEHAVIORAL'
-export type SkillCategory   = 'CREATIONAL' | 'STRUCTURAL' | 'BEHAVIORAL' | 'GENERAL'
-export type QuestionType    = 'MULTIPLE_CHOICE' | 'PATTERN_RECOGNITION'
-export type AnswerType      = 'CORRECT' | 'WRONG'
-export type ItemType        = 'WEAPON' | 'ARMOR' | 'ACCESSORY'
-export type ItemRarity      = 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY'
-export type BattleStatus    = 'IN_PROGRESS' | 'WON' | 'LOST' | 'ABANDONED'
-export type QuestStatus     = 'AVAILABLE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+export type SkillCategory = 'CREATIONAL' | 'STRUCTURAL' | 'BEHAVIORAL' | 'GENERAL'
+export type QuestionType = 'MULTIPLE_CHOICE' | 'PATTERN_RECOGNITION'
+export type AnswerType = 'CORRECT' | 'WRONG'
+export type ItemType = 'WEAPON' | 'ARMOR' | 'ACCESSORY'
+export type ItemRarity = 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY'
+export type BattleStatus = 'IN_PROGRESS' | 'WON' | 'LOST' | 'ABANDONED'
+export type QuestStatus = 'AVAILABLE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+export type EnemyType = 'MINION' | 'BOSS'
+export type CharacterState = 'INITIAL' | 'ADVENTURING' | 'BATTLE' | 'BATTLE_COMPLETE'
 
 // ============================================================
 // Auth — from auth_proxy service
@@ -32,7 +34,6 @@ export interface UserInfo {
 export interface CreatePlayerRequest {
   username: string
   email: string
-  firebaseUid: string
 }
 
 export interface PlayerResponse {
@@ -93,10 +94,28 @@ export interface CharacterResponse {
   defense: number
   mana: number
   maxMana: number
-  equippedWeapon:    EquippedItemResponse | null
-  equippedArmor:     EquippedItemResponse | null
+  equippedWeapon: EquippedItemResponse | null
+  equippedArmor: EquippedItemResponse | null
   equippedAccessory: EquippedItemResponse | null
   createdAt: string
+  characterProgressResponse: CharacterProgressResponse
+}
+
+export interface CharacterProgressResponse {
+  state: CharacterState
+  zone: string
+  caveNumber: number
+  activeBattleId: string
+  defeatedEnemiesPerCave: number
+  caveBossDefeated: boolean
+  openedChestsPerZone: number
+  coordinateX: number
+  coordinateY: number
+}
+
+export interface AdventureRequest {
+  category: string
+  caveNumber: number
 }
 
 // ============================================================
@@ -108,6 +127,7 @@ export interface SkillResponse {
   name: string
   description: string
   category: SkillCategory
+  effectDescription: string
 }
 
 export interface CharacterSkillResponse {
@@ -148,6 +168,12 @@ export interface AnswerResponse {
   description: string
 }
 
+export interface SubmitQuestionResponse {
+  id: string
+  answerId: string
+  correct: boolean
+}
+
 export interface QuestionResponse {
   id: string
   description: string
@@ -162,6 +188,9 @@ export interface QuestionResponse {
 
 export interface StartBattleRequest {
   patternId: string
+  enemyType: EnemyType | null
+  coordinateX: number
+  coordinateY: number
 }
 
 export interface SubmitAnswerRequest {
@@ -176,6 +205,8 @@ export interface BattleResponse {
   status: BattleStatus
   characterHpStart: number
   characterHpCurrent: number
+  enemyHpStart: number
+  enemyHpCurrent: number
   xpEarned: number
   goldEarned: number
   goldLost: number
@@ -203,6 +234,7 @@ export interface SubmitAnswerResponse {
   correctAnswerDescription: string
   damageTaken: number
   characterHpCurrent: number
+  enemyHpCurrent: number
   questionsAnswered: number
   questionsCorrect: number
   battleEnded: boolean
@@ -230,6 +262,7 @@ export interface BattleSummaryResponse {
   goldEarned: number
   goldLost: number
   masteryLost: number
+  masteryAdd: number
   questionLog: BattleQuestionResponse[]
   startedAt: string
   endedAt: string
@@ -330,6 +363,16 @@ export interface EnemyDefinition {
   y: number
   zone: PatternCategory
 }
+
+export interface TargetCave {
+  zone: string                    // 'CREATIONAL' | 'STRUCTURAL' | 'BEHAVIORAL'
+  caveNumber: number
+  spawnX: number                  // Player spawn position
+  spawnY: number
+  undefeatedMinionCount: number   // How many minions to spawn (0-5)
+  bossDefeated: boolean           // Whether to spawn the boss
+}
+
 
 export type GameScreen =
   | 'loading'

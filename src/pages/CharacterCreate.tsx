@@ -205,7 +205,7 @@ export function CharacterCreate({ onSuccess }: CharacterCreateProps) {
             <button
               type="submit"
               className="game-btn"
-              disabled={createMutation.isPending || !selectedClass || !name.trim()}
+              disabled={createMutation.isPending || !name.trim()}
               style={{ width: '100%', padding: '10px', fontSize: 10, letterSpacing: 2 }}
             >
               {createMutation.isPending ? 'FORGING HERO...' : 'BEGIN ADVENTURE →'}

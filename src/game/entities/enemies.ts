@@ -1,4 +1,12 @@
+import type kaplay from 'kaplay'
+import type { GameObj } from "kaplay";
 import type { PatternCategory } from '@/types'
+import { useGameStore } from '@/stores/gameStore'
+import {
+  TILE_SIZE, ENEMY_SCALE,
+} from '../kaplay'
+
+type KCtx = ReturnType<typeof kaplay>
 
 // ============================================================
 // Enemy definitions
@@ -23,7 +31,7 @@ export const ENEMY_DEFINITIONS: Record<string, EnemyDef> = {
     patternName: 'Singleton',
     sprite: 'GoldStatue',
     zone: 'CREATIONAL',
-    tileX: 8,  tileY: 6,
+    tileX: 8, tileY: 6,
     battleIntro: 'The Gold Statue stirs. "There can be only ONE instance of me!"',
   },
   'Factory Method': {
@@ -37,7 +45,7 @@ export const ENEMY_DEFINITIONS: Record<string, EnemyDef> = {
     patternName: 'Abstract Factory',
     sprite: 'Sultan',
     zone: 'CREATIONAL',
-    tileX: 6,  tileY: 12,
+    tileX: 6, tileY: 12,
     battleIntro: 'The Sultan commands his court. "My factory produces entire families!"',
   },
   'Builder': {
@@ -61,7 +69,7 @@ export const ENEMY_DEFINITIONS: Record<string, EnemyDef> = {
     patternName: 'Adapter',
     sprite: 'RobotGrey',
     zone: 'STRUCTURAL',
-    tileX: 7,  tileY: 5,
+    tileX: 7, tileY: 5,
     battleIntro: 'The Robot buzzes. "I convert incompatible interfaces. Resistance is futile!"',
   },
   'Bridge': {
@@ -82,7 +90,7 @@ export const ENEMY_DEFINITIONS: Record<string, EnemyDef> = {
     patternName: 'Decorator',
     sprite: 'Vampire',
     zone: 'STRUCTURAL',
-    tileX: 4,  tileY: 11,
+    tileX: 4, tileY: 11,
     battleIntro: 'The Vampire grins. "I wrap you in new behaviour... without changing your class!"',
   },
   'Facade': {
@@ -96,7 +104,7 @@ export const ENEMY_DEFINITIONS: Record<string, EnemyDef> = {
     patternName: 'Flyweight',
     sprite: 'NinjaGray',
     zone: 'STRUCTURAL',
-    tileX: 8,  tileY: 16,
+    tileX: 8, tileY: 16,
     battleIntro: 'The gray ninja flickers — a hundred of him at once. "We share state to save memory!"',
   },
   'Proxy': {
@@ -113,7 +121,7 @@ export const ENEMY_DEFINITIONS: Record<string, EnemyDef> = {
     patternName: 'Chain of Responsibility',
     sprite: 'SkeletonDemon',
     zone: 'BEHAVIORAL',
-    tileX: 6,  tileY: 6,
+    tileX: 6, tileY: 6,
     battleIntro: 'The demon rattles its chains. "Your request passes through us all... until one of us handles it!"',
   },
   'Command': {
@@ -127,7 +135,7 @@ export const ENEMY_DEFINITIONS: Record<string, EnemyDef> = {
     patternName: 'Iterator',
     sprite: 'Skeleton',
     zone: 'BEHAVIORAL',
-    tileX: 9,  tileY: 13,
+    tileX: 9, tileY: 13,
     battleIntro: 'The skeleton marches in sequence. "I traverse the collection without revealing its structure!"',
   },
   'Mediator': {
@@ -141,7 +149,7 @@ export const ENEMY_DEFINITIONS: Record<string, EnemyDef> = {
     patternName: 'Memento',
     sprite: 'Tengu',
     zone: 'BEHAVIORAL',
-    tileX: 5,  tileY: 15,
+    tileX: 5, tileY: 15,
     battleIntro: 'The tengu unfurls a scroll. "I hold the snapshot of your state. Undo is my power!"',
   },
   'Observer': {
@@ -155,7 +163,7 @@ export const ENEMY_DEFINITIONS: Record<string, EnemyDef> = {
     patternName: 'State',
     sprite: 'DemonGreen',
     zone: 'BEHAVIORAL',
-    tileX: 8,  tileY: 11,
+    tileX: 8, tileY: 11,
     battleIntro: 'The demon shifts form. "My behaviour changes with my internal state. I am never the same twice!"',
   },
   'Strategy': {
@@ -169,7 +177,7 @@ export const ENEMY_DEFINITIONS: Record<string, EnemyDef> = {
     patternName: 'Template Method',
     sprite: 'Master',
     zone: 'BEHAVIORAL',
-    tileX: 4,  tileY: 8,
+    tileX: 4, tileY: 8,
     battleIntro: 'The master stands unmoved. "The skeleton of the algorithm is mine. Only the steps are yours to fill."',
   },
   'Visitor': {
@@ -181,12 +189,209 @@ export const ENEMY_DEFINITIONS: Record<string, EnemyDef> = {
   },
 }
 
-// Helper — get enemies by zone
 export function getEnemiesByZone(zone: PatternCategory): EnemyDef[] {
   return Object.values(ENEMY_DEFINITIONS).filter(e => e.zone === zone)
 }
 
-// Helper — get enemy by pattern name
 export function getEnemyByPattern(patternName: string): EnemyDef | undefined {
   return ENEMY_DEFINITIONS[patternName]
+}
+
+let minionRegistry: GameObj[] = [];
+
+export function initEnemyManager(k: KCtx) {
+  k.onUpdate(() => {
+    const isPaused = useGameStore.getState().isGamePaused;
+    if (isPaused) return;
+
+    // Cleanup the registry: filter out destroyed minions
+    minionRegistry = minionRegistry.filter(m => m.exists() && !m.defeated);
+
+    for (const m of minionRegistry) {
+      processMinionAI(k, m);
+    }
+  });
+}
+
+// 3. Move the AI logic into a pure processing function
+function processMinionAI(k: KCtx, m: GameObj) {
+  m.directionTimer += k.dt()
+
+  // Change direction every 2+ seconds
+  if (m.directionTimer > 2 + Math.random()) {
+    const directions = [
+      k.vec2(1, 0), k.vec2(-1, 0),
+      k.vec2(0, 1), k.vec2(0, -1),
+    ]
+    m.direction = directions[Math.floor(Math.random() * directions.length)]
+    m.directionTimer = 0
+
+    // Update animation
+    const animMap: Record<string, string> = {
+      '1,0': 'walk-right',
+      '-1,0': 'walk-left',
+      '0,1': 'walk-down',
+      '0,-1': 'walk-up',
+    }
+    const key = `${m.direction.x},${m.direction.y}`
+    try {
+      // Only play if it's a different animation to avoid frame flickering
+      const newAnim = animMap[key] ?? 'walk-down'
+      if (m.curAnim() !== newAnim) {
+        m.play(newAnim)
+      }
+    } catch { /* ignore */ }
+  }
+
+  // CRITICAL: Actually call the move function
+  m.move(m.direction.scale(m.speed))
+}
+
+// ============================================================
+// Enemy entity in dungeon
+// ============================================================
+
+export function addMinion(k: KCtx, x: number, y: number, spriteName: string, patternName: string) {
+  const minion = k.add([
+    k.sprite(`${spriteName}-walk`, { anim: 'walk-down' }),
+    k.pos(x, y),
+    k.scale(ENEMY_SCALE * 0.7),
+    k.area({ shape: new k.Rect(k.vec2(0, 0), TILE_SIZE, TILE_SIZE) }),
+    k.body(),
+    k.anchor('center'),
+    k.z(5),
+    'minion',
+    {
+      defeated: false,
+      speed: 30,
+      direction: k.vec2(1, 0),
+      directionTimer: 0,
+    },
+  ])
+
+
+  minion.onCollide('wall', () => {
+    minion.direction = minion.direction.scale(-1)
+    minion.directionTimer = 0
+  })
+
+  minion.onCollide('player', () => {
+    if (minion.defeated) return
+    if (useGameStore.getState().isGamePaused) return
+
+    const gameStore = useGameStore.getState()
+    gameStore.pauseGame()
+    gameStore.setEnemyType('MINION')
+    useGameStore.setState({
+      currentDungeonPatternId: patternName,
+      coordinateX: x,
+      coordinateY: y,
+      onBattleWon: () => {
+        minion.defeated = true
+        k.destroy(minion)
+      }
+    })
+    showBattleIntro(k, 'A wild enemy appears!', () => {
+      gameStore.triggerBattle({} as never)
+    })
+  })
+
+  minion.play("walk-down")
+  minionRegistry.push(minion)
+
+  return minion
+}
+
+export function clearEnemyRegistry() {
+  minionRegistry = [];
+}
+
+// ============================================================
+// Boss entity in dungeon
+// ============================================================
+
+export function addBoss(k: KCtx, x: number, y: number, patternName: string, patternCategory: PatternCategory) {
+  const enemies = getEnemiesByZone(patternCategory)
+  const enemyDef = enemies.find(e => e.patternName === patternName)
+  const sprite = enemyDef?.sprite ?? 'GoldStatue'
+  const battleIntro = enemyDef?.battleIntro ?? `${patternName} boss appears!`
+
+  const boss = k.add([
+    k.sprite(`${sprite}-idle`, { anim: 'idle' }),
+    k.pos(x, y),
+    k.scale(ENEMY_SCALE * 1.4),
+    k.area({ shape: new k.Rect(k.vec2(0, 0), TILE_SIZE, TILE_SIZE) }),
+    k.anchor('center'),
+    k.z(5),
+    'boss',
+    {
+      patternName,
+      defeated: false,
+    },
+  ])
+
+  // Boss name label
+  boss.add([
+    k.text(patternName, { size: 5, font: 'monospace' }),
+    k.pos(x, y - TILE_SIZE * 2),
+    k.color(255, 100, 100),
+    k.anchor('center'),
+    k.z(20),
+    { follow: boss },
+  ])
+
+  boss.onCollide('player', () => {
+    if (boss.defeated) return
+    if (useGameStore.getState().isGamePaused) return
+
+    const gameStore = useGameStore.getState()
+    gameStore.pauseGame()
+
+    gameStore.setEnemyType('BOSS')
+    useGameStore.setState({
+      currentDungeonPatternId: patternName,
+      coordinateX: x,
+      coordinateY: y,
+      onBattleWon: () => {
+        boss.defeated = true
+        k.destroy(boss)
+      }
+    })
+
+    showBattleIntro(k, battleIntro, () => {
+      gameStore.triggerBattle({} as never)
+    })
+  })
+
+  return boss
+}
+
+// ============================================================
+// Battle intro dialog
+// ============================================================
+
+function showBattleIntro(k: KCtx, text: string, onDone: () => void) {
+  const cp = k.getCamPos();
+  k.setCamPos(cp.x - 150, cp.y + 80)
+  const dialogBg = k.add([
+    k.rect(300, 60),
+    k.pos(cp.x - 150, cp.y + 80),
+    k.color(10, 14, 26),
+    k.outline(2, k.Color.fromArray([0, 212, 170])),
+    k.z(100),
+    k.anchor('topleft'),
+  ])
+
+  const dialogText = k.add([
+    k.text(text, { size: 18, font: "'Nunito', sans-serif", width: 280 }),
+    k.pos(cp.x - 140, cp.y + 88),
+    k.color(232, 234, 240),
+    k.z(101),
+  ])
+
+  k.wait(1.5, () => {
+    k.destroy(dialogBg)
+    k.destroy(dialogText)
+    onDone()
+  })
 }

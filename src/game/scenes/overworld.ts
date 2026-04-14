@@ -1,6 +1,9 @@
 import type kaplay from 'kaplay'
-import { TILE_SIZE, PLAYER_SCALE, PLAYER_SPEED, SCENES } from '../kaplay'
+import { TILE_SIZE, SCENES } from '../kaplay'
 import { useGameStore } from '@/stores/gameStore'
+import { createPlayer, setupPlayerMovement } from '@/game/entities/player'
+import { addPortal, portalCollide } from '@/game/entities/portal'
+import { addOptimizedCollisions, getOuterWallFrame, getInnerWallFrame } from '@/game/entities/map'
 
 // ============================================================
 // Overworld Scene
@@ -20,38 +23,65 @@ type KCtx = ReturnType<typeof kaplay>
 //   B = Behavioral dungeon entrance
 //   P = Player spawn
 
-const OVERWORLD_MAP = [
-  'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT',
-  'T............................................T',
-  'T...TTT..........TTT..........TTT.............T',
-  'T..TTT............T............TTT............T',
-  'T...T.............T.............T.............T',
-  'T.............................................T',
-  'T....TTTTT........C........TTTTT..............T',
-  'T.............................................T',
-  'T.............................................T',
-  'T......P..........S......................B.....T',
-  'T.............................................T',
-  'T.............................................T',
-  'T....TTT..........T...........TTT.............T',
-  'T....TTT..........T...........TTT.............T',
-  'T.............................................T',
-  'T.............................................T',
-  'T...TTT...........T............TTT............T',
-  'T.............................................T',
-  'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT',
-]
+// const OVERWORLD_MAP = [
+//   'RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
+//   'R.............................................R',
+//   'R.............................................R',
+//   'R...TTT..........TTT....................T.T.T.R',
+//   'R..TtT............T...........................R',
+//   'R...T.............T.......................C.T.R',
+//   'R.............................................R',
+//   'R....TtTtT..............................T.T.T.R',
+//   'R.............................................R',
+//   'R.......................................T.T.T.R',
+//   'R......P....C....c............................R',
+//   'R.........................................B.T.R',
+//   'R.............................................R',
+//   'R....TTT................................T.T.T.R',
+//   'R....TtT..........T...........................R',
+//   'R.......................................T.T.T.R',
+//   'R.............................................R',
+//   'R...TTT...........T.......................S.T.R',
+//   'R.................T...........................R',
+//   'R.................t.....................T.T.T.R',
+//   'R.............................................R',
+//   'R.............................................R',
+//   'RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
+// ]
+export const OVERWORLD_MAP = [
+  "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR222RRRRRRRRRRRRRRRRRRRRRRRRRRRRRR", // 00
+  "R................W.......W............W.......W................R",
+  "R................W.......W............W.......W................R", // 01 (Portal 1: Wizard)
+  "R........T...............W............W................T.......R", // 02
+  "R........................W............W........................R",
+  "R................W.......W............W.......W................R", // 03
+  "RWWWWWWWWWWWWWWWWW.......W............W.......WWWWWWWWWWWWWWWWWR", // 04
+  "R................W.......WWWWWW...WWWWW.......W................R", // 05
+  "R..............................................................R", // 06
+  "R........T.............................................T.......R", // 07 (Portal 2: Knight | Portal 4: Citadel)
+  "R................W..............P.............W................R", // 08 (S: Spawn Point)
+  "R................W............................W................R", // 09
+  "RWWWWWWWWWWWWWWWWW............................WWWWWWWWWWWWWWWWWR", // 10
+  "R................W.......WWWWWW...WWWWW.......W................R", // 11 (V: Void/Dungeon Walls)
+  "R........................W............W........................R", // 12
+  "R.........T..............W............W................T.......R", // 13 (Portal 5: Echo Void)
+  "R................W.......W............W.......W................R", // 14 (Portal 3: Rogue)
+  "R................W.......W............W.......W................R", // 15
+  "R................W.......W............W.......W................R", // 17
+  "R................W.......W............W.......W................R", // 18
+  "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR111RRRRRRRRRRRRRRRRRRRRRRRRRRRRRR", // 20
+];
 
 export function registerOverworldScene(k: KCtx) {
-  k.scene(SCENES.OVERWORLD, () => {
+  k.scene(SCENES.OVERWORLD, (spawnX?: number, spawnY?: number) => {
     const gameStore = useGameStore.getState()
     gameStore.enterZone('OVERWORLD')
 
     // ── Camera ─────────────────────────────────────────────
-    k.setCamScale(2)
+    k.setCamScale(1.5)
 
     // ── Tile rendering ────────────────────────────────────
-    let playerSpawn = k.vec2(9 * TILE_SIZE, 9 * TILE_SIZE)
+    let playerSpawn = k.vec2(8 * TILE_SIZE, 8 * TILE_SIZE)
 
     for (let row = 0; row < OVERWORLD_MAP.length; row++) {
       for (let col = 0; col < OVERWORLD_MAP[row].length; col++) {
@@ -59,196 +89,130 @@ export function registerOverworldScene(k: KCtx) {
         const x = col * TILE_SIZE
         const y = row * TILE_SIZE
 
-        // Grass floor everywhere
+        // Floor bg everywhere
+        // if (ch === '.') {
         k.add([
-          k.rect(TILE_SIZE, TILE_SIZE),
+          // k.sprite("floor-tiles", { frame: 233 }),
+          k.sprite("floor-tiles", { frame: 99 }),
+          // k.sprite("orange"),
+          // k.sprite("field-white"),
           k.pos(x, y),
-          k.color(34, 85, 34),
           k.z(-1),
         ])
-
-        if (ch === 'T') {
-          k.add([
-            k.rect(TILE_SIZE, TILE_SIZE),
-            k.pos(x, y),
-            k.color(20, 60, 20),
-            k.area(),
-            k.body({ isStatic: true }),
-            'wall',
-          ])
-        }
-
-        if (ch === 'W') {
-          k.add([
-            k.rect(TILE_SIZE, TILE_SIZE),
-            k.pos(x, y),
-            k.color(30, 80, 160),
-            k.area(),
-            k.body({ isStatic: true }),
-            'wall',
-          ])
-        }
-
-        // Dungeon entrances
-        if (ch === 'C') {
-          addDungeonEntrance(k, x, y, 'CREATIONAL', [100, 200, 100])
-        }
-        if (ch === 'S') {
-          addDungeonEntrance(k, x, y, 'STRUCTURAL', [100, 150, 220])
-        }
-        if (ch === 'B') {
-          addDungeonEntrance(k, x, y, 'BEHAVIORAL', [180, 80, 180])
-        }
-
-        if (ch === 'P') {
-          playerSpawn = k.vec2(x, y)
+        // }
+        switch (ch) {
+          case 'R': {
+            // k.add([k.sprite("rock-grey"), k.pos(x, y)]);
+            // waterRects.push({ x, y });
+            k.add([
+              k.sprite("tileset-interior", { frame: getOuterWallFrame(OVERWORLD_MAP, row, col) }),
+              k.pos(col * TILE_SIZE, row * TILE_SIZE),
+            ]);
+            break;
+          };
+          case 'W': {
+            k.add([
+              // [k.sprite("rock-grey"), k.pos(x, y)]
+              // k.sprite("tileset-interior", { frame: 251 }),
+              k.sprite("tileset-interior", { frame: getInnerWallFrame(OVERWORLD_MAP, row, col) }),
+              k.pos(col * TILE_SIZE, row * TILE_SIZE),
+            ]);
+            // waterRects.push({ x, y });
+            break;
+          };
+          case 'w': {
+            k.add([
+              // [k.sprite("rock-grey"), k.pos(x, y)]
+              k.sprite("tileset-interior", { frame: 298 }),
+              k.pos(col * TILE_SIZE, row * TILE_SIZE),
+            ]);
+            break;
+          };
+          case 'T': {
+            k.add([k.sprite("tree-green-2"), k.pos(x, y), k.area(), k.body({ isStatic: true }), 'wall'])
+            break;
+          };
+          case 't': {
+            k.add([k.sprite("tree-green"), k.pos(x, y), k.area(), k.body({ isStatic: true }), 'wall'])
+            break;
+          };
+          case '1': {
+            k.add(
+              [k.sprite("tileset-dungeon", { frame: 24 }),
+              k.pos(col * TILE_SIZE, row * TILE_SIZE), k.area(), k.body({ isStatic: true }), 'hall-entrance']
+            )
+            break;
+          };
+          case '2': {
+            k.add(
+              [k.sprite("tileset-dungeon", { frame: 37 }),
+              k.pos(col * TILE_SIZE, row * TILE_SIZE), k.area(), k.body({ isStatic: true }), 'hall-entrance']
+            )
+            break;
+          };
+          case 'O': {
+            addPortal(k, x, y, 'OVERWORLD', [100, 200, 100])
+            break;
+          };
+          case 'C': {
+            addPortal(k, x, y, 'CREATIONAL', [100, 200, 100])
+            break;
+          };
+          case 'S': {
+            addPortal(k, x, y, 'STRUCTURAL', [100, 150, 220])
+            break;
+          };
+          case 'B': {
+            addPortal(k, x, y, 'BEHAVIORAL', [180, 80, 180])
+            break;
+          };
+          case 'P': {
+            if (spawnX === undefined || spawnY === undefined) {
+              playerSpawn = k.vec2(x, y);
+            } else {
+              playerSpawn = k.vec2(spawnX, spawnY)
+            }
+            break;
+          };
         }
       }
     }
+    // if (waterRects.length > 0) {
+    // Option A: Create one large compound shape from water tiles
+    // const waterPolygon = mergeRectangles(k, waterRects, TILE_SIZE);
 
-    // ── Player ───────────────────────────────────────────────
+    // k.add([
+    //   k.polygon(waterPolygon),
+    //   k.pos(0, 0),
+    //   k.area(),
+    //   k.body({ isStatic: true }),
+    //   k.color(30, 80, 160),
+    //   'water-barrier' 
+    // ]);
+
+    // Option B: Visual water tiles (no physics)
+    // waterRects.forEach(rect => {
+    //   k.add([
+    //     k.rect(TILE_SIZE, TILE_SIZE),
+    //     k.pos(rect.x, rect.y),
+    //     k.color(30, 80, 160),
+    //     k.z(0),  // Render above background, below sprites
+    //     // NO k.area(), NO k.body() — visual only!
+    //   ]);
+    // });
+    // }
+    addOptimizedCollisions(k, OVERWORLD_MAP, 'R', 'wall');
+    addOptimizedCollisions(k, OVERWORLD_MAP, 'W', 'water-barrier');
+
     const player = createPlayer(k, playerSpawn)
 
-    // ── Camera follows player ────────────────────────────────
     k.onUpdate(() => {
       k.setCamPos(player.pos)
+      const isPaused = useGameStore.getState().isGamePaused
+      player.paused = isPaused
+      setupPlayerMovement(k, player)
     })
 
-    // ── Keyboard input ───────────────────────────────────────
-    setupPlayerMovement(k, player)
-
-    // ── Pause when game is paused ─────────────────────────────
-    k.onUpdate(() => {
-      if (useGameStore.getState().isGamePaused) {
-        player.paused = true
-      } else {
-        player.paused = false
-      }
-    })
+    portalCollide(k)
   })
-}
-
-// ============================================================
-// Player entity
-// ============================================================
-
-function createPlayer(k: KCtx, pos: ReturnType<typeof k.vec2>) {
-  const player = k.add([
-    k.sprite('player-idle', { anim: 'idle-down' }),
-    k.pos(pos),
-    k.scale(PLAYER_SCALE),
-    k.area({ shape: new k.Rect(k.vec2(4, 12), 24, 20) }),
-    k.body(),
-    k.anchor('center'),
-    k.z(10),
-    {
-      direction: 'down' as 'down' | 'up' | 'left' | 'right',
-      isMoving: false,
-      speed: PLAYER_SPEED,
-    },
-  ])
-
-  return player
-}
-
-// ============================================================
-// Player movement
-// ============================================================
-
-function setupPlayerMovement(
-  k: KCtx,
-  player: ReturnType<typeof createPlayer>
-) {
-  k.onUpdate(() => {
-    if (useGameStore.getState().isGamePaused) return
-
-    const vel = k.vec2(0, 0)
-
-    if (k.isKeyDown('left') || k.isKeyDown('a')) {
-      vel.x = -player.speed
-      player.direction = 'left'
-    } else if (k.isKeyDown('right') || k.isKeyDown('d')) {
-      vel.x = player.speed
-      player.direction = 'right'
-    }
-
-    if (k.isKeyDown('up') || k.isKeyDown('w')) {
-      vel.y = -player.speed
-      player.direction = 'up'
-    } else if (k.isKeyDown('down') || k.isKeyDown('s')) {
-      vel.y = player.speed
-      player.direction = 'down'
-    }
-
-    player.isMoving = vel.x !== 0 || vel.y !== 0
-
-    if (player.isMoving) {
-      player.move(vel)
-      // Switch to walk spritesheet
-      try {
-        const walkAnim = `walk-${player.direction}`
-        if (player.getCurAnim()?.name !== walkAnim) {
-          player.use(k.sprite('player-walk'))
-          player.play(walkAnim)
-        }
-      } catch {/* sprite switch in progress */}
-    } else {
-      // Switch to idle spritesheet
-      try {
-        const idleAnim = `idle-${player.direction}`
-        if (player.getCurAnim()?.name !== idleAnim) {
-          player.use(k.sprite('player-idle'))
-          player.play(idleAnim)
-        }
-      } catch {/* sprite switch in progress */}
-    }
-  })
-}
-
-// ============================================================
-// Dungeon entrance portal
-// ============================================================
-
-function addDungeonEntrance(
-  k: KCtx,
-  x: number,
-  y: number,
-  zone: 'CREATIONAL' | 'STRUCTURAL' | 'BEHAVIORAL',
-  color: [number, number, number]
-) {
-  const portal = k.add([
-    k.rect(TILE_SIZE * 2, TILE_SIZE * 2),
-    k.pos(x - TILE_SIZE / 2, y - TILE_SIZE / 2),
-    k.color(...color),
-    k.area(),
-    k.anchor('topleft'),
-    k.z(1),
-    'dungeon-entrance',
-    { zone },
-  ])
-
-  // Pulsing glow effect
-  let t = 0
-  k.onUpdate(() => {
-    t += k.dt()
-    const alpha = 0.6 + Math.sin(t * 2) * 0.3
-    portal.opacity = alpha
-  })
-
-  // Zone label
-  const labels: Record<string, string> = {
-    CREATIONAL: 'Creational\nForest',
-    STRUCTURAL: 'Structural\nCastle',
-    BEHAVIORAL: 'Behavioral\nDungeon',
-  }
-
-  k.add([
-    k.text(labels[zone] || zone, { size: 6, font: 'pixel' }),
-    k.pos(x, y - TILE_SIZE * 2),
-    k.color(255, 255, 255),
-    k.anchor('center'),
-    k.z(20),
-  ])
-
-  return portal
 }

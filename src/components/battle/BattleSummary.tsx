@@ -8,29 +8,23 @@ import { useGameStore } from '@/stores/gameStore'
 
 export function BattleSummary() {
   const showSummaryModal = useGameStore(s => s.showSummaryModal)
-  const battleSummary    = useGameStore(s => s.battleSummary)
-  const closeSummary     = useGameStore(s => s.closeSummary)
-  const updateCharacterExp  = useGameStore(s => s.updateCharacterExp)
-  const updateCharacterGold = useGameStore(s => s.updateCharacterGold)
-  const character        = useGameStore(s => s.character)
+  const battleSummary = useGameStore(s => s.battleSummary)
+  const closeSummary = useGameStore(s => s.closeSummary)
+  const character = useGameStore(s => s.character)
+  // const setCharacter = useGameStore(s => s.setCharacter)
 
   if (!showSummaryModal || !battleSummary || !character) return null
 
-  const won  = battleSummary.status === 'WON'
+  const won = battleSummary.status === 'WON'
   const accuracy = battleSummary.questionsAnswered > 0
     ? Math.round((battleSummary.questionsCorrect / battleSummary.questionsAnswered) * 100)
     : 0
 
-  function handleClose() {
-    // Apply rewards/penalties to character in store
-    if (won) {
-      const newExp = character!.exp + battleSummary!.xpEarned
-      updateCharacterExp(newExp, character!.level, character!.expToNextLevel)
-      updateCharacterGold(character!.gold + battleSummary!.goldEarned)
-    } else {
-      updateCharacterGold(Math.max(0, character!.gold - battleSummary!.goldLost))
-    }
+  async function handleClose() {
     closeSummary()
+
+    const canvas = document.querySelector('canvas')
+    canvas?.focus()
   }
 
   return (
@@ -91,7 +85,7 @@ export function BattleSummary() {
             <StatCard
               label={won ? 'Mastery +' : 'Mastery −'}
               value={won
-                ? `+${battleSummary.questionsCorrect * 3}`
+                ? `+${battleSummary.masteryAdd}`
                 : `-${battleSummary.masteryLost}`}
               color={won ? 'var(--color-accent)' : 'var(--color-danger)'}
             />

@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { initKaplay, SCENES } from '@/game/kaplay'
 import { registerOverworldScene } from '@/game/scenes/overworld'
-import { registerDungeonScenes } from '@/game/scenes/dungeon'
+import { registerDungeonScenes } from '@/game/scenes/creationalDungeon'
+import { registerStructuralDungeonScenes } from '@/game/scenes/structuralDungeon'
+import { registerBehaviorDungeonScenes } from '@/game/scenes/behavioralDungeon'
 import { useGameStore } from '@/stores/gameStore'
 
 // ============================================================
@@ -11,44 +13,78 @@ import { useGameStore } from '@/stores/gameStore'
 // React UI sits on top (z-index: 10+).
 // ============================================================
 
+let kaplayInstance: ReturnType<typeof initKaplay> | null = null
+
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const initialized = useRef(false)
+  // const kaplayRef = useRef<ReturnType<typeof initKaplay> | null>(null)
   const currentScreen = useGameStore(s => s.currentScreen)
+  const targetCave = useGameStore(s => s.targetCave)
 
-  useEffect(() => {
-    if (!canvasRef.current || initialized.current) return
-    initialized.current = true
+   // useEffect(() => {
+  async function navigate() {
 
-    const k = initKaplay(canvasRef.current)
 
-    // Register all scenes
-    registerOverworldScene(k)
-    registerDungeonScenes(k)
+    if (!kaplayInstance) return
+    const k = kaplayInstance
 
-    // Start at overworld
-    k.go(SCENES.OVERWORLD)
-
-    // Handle dungeon entrance collision from overworld
-    // This is set up here so k is in scope
-    k.onCollide('player', 'dungeon-entrance', (_player, entrance) => {
-      const zone = (entrance as unknown as { zone: string }).zone
-      const sceneName = `dungeon-${zone.toLowerCase()}`
-      useGameStore.getState().enterZone(zone)
-      k.go(sceneName)
-    })
-
-    return () => {
-      // Kaplay doesn't have a destroy — just let the canvas unmount
+    if (currentScreen === 'overworld') {
+      k.go(SCENES.OVERWORLD)
     }
+    else if (currentScreen === 'dungeon' && targetCave) {
+      const sceneMap: Record<string, string> = {
+        'CREATIONAL': 'dungeon-creational',
+        'STRUCTURAL': 'dungeon-structural',
+        'BEHAVIORAL': 'dungeon-behavioral',
+      }
+      console.log(`[GameCanvas] Navigating to dungeon scene for cave: `, sceneMap[targetCave.zone])
+      // Navigate to the specific dungeon and cave number saved in the store
+      k.go(sceneMap[targetCave.zone], targetCave.caveNumber)
+    }
+  }
+  // }, [currentScreen, targetCave])
+  useEffect(() => {
+    if (!canvasRef.current) return
+    if (kaplayInstance) return
+    // if (kaplayRef.current) return
+
+    // const k = initKaplay(canvasRef.current, () => {
+    //   registerOverworldScene(k)
+    //   registerDungeonScenes(k)
+    //   registerStructuralDungeonScenes(k)
+    //   registerBehaviorDungeonScenes(k)
+    //   k.go(SCENES.OVERWORLD)
+    // })
+    // kaplayRef.current = k
+
+    // return () => {
+    //   try {
+    //     k.quit?.()
+    //   } catch {}
+    //   kaplayRef.current = null
+    // }
+
+    kaplayInstance = initKaplay(canvasRef.current, () => {
+      const k = kaplayInstance!
+      registerOverworldScene(k)
+      registerDungeonScenes(k)
+      registerStructuralDungeonScenes(k)
+      registerBehaviorDungeonScenes(k)
+      navigate()
+      // k.go(SCENES.OVERWORLD)
+      const state = useGameStore.getState();
+      console.log('[GameCanvas] Initializing Kaplay and starting overworld scene: ', state.character?.characterProgressResponse)
+    })
   }, [])
 
-  // Hide canvas on non-game screens (login, character create, etc.)
+ 
+
   const isGameScreen = ['overworld', 'dungeon', 'battle'].includes(currentScreen)
 
   return (
     <canvas
       ref={canvasRef}
+      tabIndex={0}
       style={{
         position: 'fixed',
         inset: 0,
@@ -56,7 +92,8 @@ export function GameCanvas() {
         height: '100%',
         zIndex: 0,
         display: isGameScreen ? 'block' : 'none',
-        imageRendering: 'pixelated',
+        imageRendering: 'smooth',
+        outline: 'none',
       }}
     />
   )
