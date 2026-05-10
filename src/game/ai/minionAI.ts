@@ -7,14 +7,15 @@ type KCtx = ReturnType<typeof kaplay>
 export function processMinionAI(k: KCtx, m: MinionObj) {
   m.directionTimer += k.dt()
 
-  // Change direction every 2+ seconds
-  if (m.directionTimer > 2 + Math.random()) {
+  // Fixed interval per wander step (don't call Math.random() every frame on the predicate)
+  if (m.directionTimer >= m.nextDirectionChangeIn) {
     const directions = [
       k.vec2(1, 0), k.vec2(-1, 0),
       k.vec2(0, 1), k.vec2(0, -1),
     ]
     m.direction = directions[Math.floor(Math.random() * directions.length)]
     m.directionTimer = 0
+    m.nextDirectionChangeIn = 2 + Math.random() * 2
 
     // Update animation
     const animMap: Record<string, string> = {

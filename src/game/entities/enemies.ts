@@ -13,9 +13,17 @@ import { MinionObj } from '@/types';
 type KCtx = ReturnType<typeof kaplay>
 
 let minionRegistry: MinionObj[] = [];
+/** Kaplay attaches onUpdate to game.root; changing scenes destroys that object — re-init per dungeon entry. */
+let enemyManagerHandle: { cancel: () => void } | null = null
+
+export function disposeEnemyManager() {
+  enemyManagerHandle?.cancel()
+  enemyManagerHandle = null
+}
 
 export function initEnemyManager(k: KCtx) {
-  k.onUpdate(() => {
+  disposeEnemyManager()
+  enemyManagerHandle = k.onUpdate(() => {
     const isPaused = useGameStore.getState().isGamePaused;
     if (isPaused) return;
 
@@ -25,7 +33,7 @@ export function initEnemyManager(k: KCtx) {
     for (const m of minionRegistry) {
       processMinionAI(k, m);
     }
-  });
+  })
 }
 
 export function clearEnemyRegistry() {
@@ -53,6 +61,7 @@ export function addMinion(k: KCtx, x: number, y: number, spriteName: string | nu
       speed: 30,
       direction: k.vec2(1, 0),
       directionTimer: 0,
+      nextDirectionChangeIn: 2 + Math.random() * 2,
     },
   ])
 

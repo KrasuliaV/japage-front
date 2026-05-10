@@ -2,7 +2,7 @@ import type kaplay from 'kaplay'
 import { useGameStore } from '@/stores/gameStore'
 import { SCENES, ZONE_COLORS, TILE_SIZE } from '@/game/kaplay'
 import { addPortal, portalCollide } from '@/game/entities/portal'
-import { addMinion, addBoss, initEnemyManager, clearEnemyRegistry } from '@/game/entities/enemies'
+import { addMinion, addBoss, clearEnemyRegistry, initEnemyManager, disposeEnemyManager } from '@/game/entities/enemies'
 import { addChest } from '@/game/entities/chest'
 import {
     addOptimizedCollisions, getFloorSprite, getInnerWallFrame, getOuterWallFrame,
@@ -133,6 +133,10 @@ export function registerDungeonScenes(k: KCtx) {
         const [r, g, b] = ZONE_COLORS[randomNumber];
         k.setBackground(Math.floor(r * 0.15), Math.floor(g * 0.15), Math.floor(b * 0.15));
 
+        // Minion AI runs via k.onUpdate on game.root — that object is destroyed on scene change,
+        // so register a fresh handler whenever dungeon-run starts (dispose avoids stacking across caves).
+        initEnemyManager(k)
+
         // 3. Tile Building Logic (Unified)
         buildMap(k, mapTemplate, {
             floor: getFloorSprite(categoryName),
@@ -211,7 +215,6 @@ function buildMap(k: KCtx, template: string[],
     store.enterZone(assets.categoryName)
 
     k.setCamScale(1.5)
-    initEnemyManager(k);
     clearEnemyRegistry();
 
     let playerSpawn = k.vec2(3 * TILE_SIZE, 3 * TILE_SIZE)
@@ -370,6 +373,7 @@ function buildMap(k: KCtx, template: string[],
 
     k.onSceneLeave(() => {
         clearEnemyRegistry();
+        disposeEnemyManager();
     });
 }
 
@@ -377,6 +381,8 @@ function spawnPlayer(k: KCtx, playerSpawn: ReturnType<typeof k.vec2>) {
     const player = createPlayer(k, playerSpawn);
     
     k.onUpdate(() => {
+        const isPaused = useGameStore.getState().isGamePaused
+        player.paused = isPaused
         k.setCamPos(player.pos);
         setupPlayerMovement(k, player);
     });

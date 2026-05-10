@@ -115,6 +115,18 @@ export function GameCanvas() {
 
   const isGameScreen = ['overworld', 'dungeon', 'battle'].includes(currentScreen)
 
+  useEffect(() => {
+    if (!isGameScreen) return
+
+    // Kaplay runs with global:false, so keyboard input depends on canvas focus.
+    // After auth/UI actions, focus can stay on a button instead of the canvas.
+    const focusCanvas = () => canvasRef.current?.focus()
+
+    focusCanvas()
+    const timer = window.setTimeout(focusCanvas, 0)
+    return () => window.clearTimeout(timer)
+  }, [isGameScreen, currentScreen])
+
   return (
     <canvas
       ref={canvasRef}

@@ -25,6 +25,8 @@ export interface MinionObj extends GameObj {
   speed: number; 
   direction: Vec2; 
   directionTimer: number 
+  /** Seconds until next random direction pick */
+  nextDirectionChangeIn: number
 }
 
 // ============================================================
