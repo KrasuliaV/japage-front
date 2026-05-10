@@ -13,59 +13,69 @@ import { Signup } from '@/pages/Signup'
 import { CharacterCreate } from '@/pages/CharacterCreate'
 
 export function ScreenRouter() {
-  const isAuthenticated = useAuthStore(s => s.isAuthenticated)
-  const setEmailAndToken = useAuthStore(s => s.setEmailAndToken)
-  const setUserInfo = useAuthStore(s => s.setUserInfo)
-  
-  const currentScreen = useGameStore(s => s.currentScreen)
-  const setScreen = useGameStore(s => s.setScreen)
-  const setCharacter = useGameStore(s => s.setCharacter)
-  const setCategories = useGameStore(s => s.setCategories)
-  const initializeGame = useGameStore(s => s.initializeGame)
+    const isAuthenticated = useAuthStore(s => s.isAuthenticated)
+    const setEmailAndToken = useAuthStore(s => s.setEmailAndToken)
+    const setUserInfo = useAuthStore(s => s.setUserInfo)
 
-  const [authPage, setAuthPage] = useState<'login' | 'signup'>('login')
+    const currentScreen = useGameStore(s => s.currentScreen)
+    const setScreen = useGameStore(s => s.setScreen)
+    const setCharacter = useGameStore(s => s.setCharacter)
+    const setCategories = useGameStore(s => s.setCategories)
+    const initializeGame = useGameStore(s => s.initializeGame)
 
-  async function handleAuthSuccess(token: string, email: string) {
-    setEmailAndToken(token, email)
-    try {
-      const userInfo = await validateToken()
-      setUserInfo(userInfo)
-      await initializeGame()
-    } catch (err) {
-      console.error('[Router] Failed to validate token:', err)
-      setScreen('login')
+    const [authPage, setAuthPage] = useState<'login' | 'signup'>('login')
+
+    async function handleAuthSuccess(token: string, email: string) {
+        setEmailAndToken(token, email)
+        try {
+            const userInfo = await validateToken()
+            setUserInfo(userInfo)
+            await initializeGame()
+        } catch (err) {
+            console.error('[Router] Failed to validate token:', err)
+            setScreen('login')
+        }
     }
-  }
 
-  // 1. Auth Screens
-  if (!isAuthenticated || currentScreen === 'login' || currentScreen === 'signup') {
-    return authPage === 'login'
-      ? <Login onNavigateToSignup={() => setAuthPage('signup')} onSuccess={handleAuthSuccess} />
-      : <Signup onNavigateToLogin={() => setAuthPage('login')} onSuccess={handleAuthSuccess} />
-  }
+    // One GameCanvas instance for the whole app lifetime. Kaplay binds to a specific
+    // DOM canvas; if GameCanvas unmounted/remounted across router branches, the
+    // singleton would keep rendering to a detached canvas (black screen after logout→login).
+    let overlay: React.ReactNode
 
-  // 2. Character Logic
-  if (currentScreen === 'character-create' || currentScreen === 'character-select') {
+    if (!isAuthenticated || currentScreen === 'login' || currentScreen === 'signup') {
+        overlay = (
+            <>
+                {authPage === 'login'
+                    ? <Login onNavigateToSignup={() => setAuthPage('signup')} onSuccess={handleAuthSuccess} />
+                    : <Signup onNavigateToLogin={() => setAuthPage('login')} onSuccess={handleAuthSuccess} />
+                }
+            </>
+        )
+    } else if (currentScreen === 'character-create' || currentScreen === 'character-select') {
+        overlay = (
+            <CharacterCreate onSuccess={({ character, categories }) => {
+                setCharacter(character)
+                setCategories(categories)
+                setScreen('overworld')
+            }} />
+        )
+    } else {
+        overlay = (
+            <div style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}>
+                <HUD />
+                <BattleModal />
+                <BattleSummary />
+                <ChestModal />
+                <ChestRewardModal />
+            </div>
+        )
+    }
+
     return (
-      <CharacterCreate
-        onSuccess={({ character, categories }) => {
-          setCharacter(character)
-          setCategories(categories)
-          setScreen('overworld')
-        }}
-      />
+        <>
+            {/* display:none when not on a game screen — see GameCanvas */}
+            <GameCanvas />
+            {overlay}
+        </>
     )
-  }
-
-  // 3. Main Game Loop (Overworld/Dungeon)
-  return (
-    <div style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}>
-      <GameCanvas />
-      <HUD />
-      <BattleModal />
-      <BattleSummary />
-      <ChestModal />
-      <ChestRewardModal />
-    </div>
-  )
 }
