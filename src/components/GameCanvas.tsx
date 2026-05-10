@@ -1,6 +1,10 @@
 import { useEffect, useRef } from 'react'
 import type kaplay from 'kaplay'
-import { initKaplay, getKaplayInstance, SCENES } from '@/game/kaplay'
+
+import {
+  initKaplay, getKaplayInstance,
+  areScenesReady, markScenesReady, SCENES
+} from '@/game/kaplay'
 import { registerOverworldScene } from '@/game/scenes/overworld'
 import { registerDungeonScenes } from '@/game/scenes/sceneInitializer'
 import { loadZoneAssets } from '@/game/assets/assetLoader'
@@ -49,18 +53,32 @@ async function navigateTo(
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const scenesReadyRef = useRef(false)
+  // const scenesReadyRef = useRef(false)
 
   const currentScreen = useGameStore(s => s.currentScreen)
   const targetCave = useGameStore(s => s.targetCave)
   const categories = useGameStore(s => s.categories)
 
   useEffect(() => {
-    if (!canvasRef.current) return
-    if (getKaplayInstance()) {
-      scenesReadyRef.current = true
+    const existingInstance = getKaplayInstance()
+
+    if (existingInstance && areScenesReady()) {
+      // GameCanvas was remounted (logout→login) but Kaplay survived.
+      // Scenes are already registered. Navigate immediately.
+      console.log('[GameCanvas] Remounted — scenes already registered, navigating.')
+      const { currentScreen, targetCave, categories } = useGameStore.getState()
+      navigateTo(existingInstance, currentScreen, targetCave, categories)
       return
     }
+
+    if (existingInstance && !areScenesReady()) {
+      // Kaplay init started but onReady hasn't fired yet.
+      // Effect 2 will handle navigation once markScenesReady() is called.
+      return
+    }
+
+    // First ever mount — initialize Kaplay
+    if (!canvasRef.current) return
 
     initKaplay(canvasRef.current, () => {
       const k = getKaplayInstance()!
@@ -68,25 +86,29 @@ export function GameCanvas() {
       k.scene('__empty__', () => { })
       registerOverworldScene(k)
       registerDungeonScenes(k)
-      scenesReadyRef.current = true
 
+      // Mark at module level — survives component unmount
+      markScenesReady()
       console.log('[GameCanvas] Scenes registered, ready to navigate.')
-      const screen = useGameStore.getState().currentScreen
-      const cave = useGameStore.getState().targetCave
-      const cats = useGameStore.getState().categories
-      navigateTo(k, screen, cave, cats)
+
+      // Navigate using current store state — not stale closure values
+      const { currentScreen, targetCave, categories } = useGameStore.getState()
+      navigateTo(k, currentScreen, targetCave, categories)
     })
+    return () => {
+      // This runs when the user logs out and GameCanvas unmounts
+      console.log('[GameCanvas] Unmounting - cleaning up Kaplay');
+      // Optionally call destroyKaplay() here if you want a fresh start every time
+    };
   }, [])
 
   useEffect(() => {
     const k = getKaplayInstance()
-
-    // Guard 1: Kaplay not initialized yet
     if (!k) return
 
-    // Guard 2: Scenes not registered yet (onReady hasn't fired)
-    // navigateTo() will be called by onReady when it completes.
-    if (!scenesReadyRef.current) return
+    console.log('[GameCanvas] Navigation trigger:', currentScreen);
+    
+    if (!areScenesReady()) return   // onReady hasn't fired — Effect 1 will handle it
 
     navigateTo(k, currentScreen, targetCave, categories)
   }, [currentScreen, targetCave, categories])

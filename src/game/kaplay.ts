@@ -7,6 +7,7 @@ import kaplay from 'kaplay'
 // ============================================================
 
 let _instance: ReturnType<typeof kaplay> | null = null
+let _scenesReady = false 
 
 export function initKaplay(canvas: HTMLCanvasElement, onReady: () => void) {
   const k = kaplay({
@@ -34,11 +35,29 @@ export function getKaplayInstance() {
   return _instance
 }
 
+export function areScenesReady() {
+  return _scenesReady
+}
+
+export function markScenesReady() {
+  _scenesReady = true
+}
+
 export function safeResetScene() {
   if (!_instance) return
   try {
     _instance.go('__empty__')
   } catch { /* not yet registered */ }
+}
+
+export function destroyKaplay() {
+  if (_instance) {
+    // Kaplay doesn't always have a formal 'destroy', 
+    // but we must clear our internal tracking and stop the loop.
+    _instance.quit(); 
+    _instance = null;
+    _scenesReady = false;
+  }
 }
 
 export function releaseToGame() {
