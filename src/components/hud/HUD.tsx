@@ -2,6 +2,7 @@ import { useGameStore } from '@/stores/gameStore'
 import { useAuthStore } from '@/stores/authStore'
 import { CharacterModal } from '@/components/menu/CharacterModal'
 import { ZoneLoadingOverlay } from './ZoneLoadingOverlay'
+import { getZoneVisual } from '@/game/config/zoneConfig'
 
 // ============================================================
 // HUD
@@ -13,7 +14,6 @@ export function HUD() {
   const character = useGameStore(s => s.character)
   const currentZone = useGameStore(s => s.currentZone)
   const openInventory = useGameStore(s => s.openInventory)
-  // const openMastery = useGameStore(s => s.openMastery)
   const logout = useAuthStore(s => s.logout)
   const currentScreen = useGameStore(s => s.currentScreen)
 
@@ -29,12 +29,12 @@ export function HUD() {
       hpPercent > 30 ? 'var(--color-hp-mid)' :
         'var(--color-hp-low)'
 
-  const zoneLabels: Record<string, string> = {
-    OVERWORLD: '🗺 Overworld',
-    CREATIONAL: '🌿 Creational Forest',
-    STRUCTURAL: '🏰 Structural Castle',
-    BEHAVIORAL: '☠ Behavioral Dungeon',
-  }
+  const zoneLabel = currentZone
+    ? (() => {
+        const visual = getZoneVisual(currentZone)
+        return `${visual.emoji} ${visual.label}`
+      })()
+    : null
 
   return (
     <div
@@ -144,7 +144,7 @@ export function HUD() {
       </div>
 
       {/* ── Top-center: Zone name ─────────────────────────── */}
-      {currentZone && (
+      {zoneLabel && (
         <div style={{
           position: 'absolute',
           top: 12,
@@ -159,7 +159,7 @@ export function HUD() {
                 fontSize: 14,
                 color: 'var(--color-text-secondary)'
               }}>
-              {zoneLabels[currentZone] || currentZone}
+              {zoneLabel}
             </span>
           </div>
         </div>

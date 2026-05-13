@@ -123,9 +123,6 @@ export function registerDungeonScenes(k: KCtx) {
         const isFirstCaveInCategory = pattern.sequenceNumber === 1;
         const isLastCaveInCategory = pattern.sequenceNumber === category.patterns.length && caveNumber === totalCavesForPattern;
         const isLastCaveInPattern = caveNumber === totalCavesForPattern;
-        console.log(`[Dungeon Scene] isFirstCaveInCategory: ${isFirstCaveInCategory}, 
-            isLastCaveInCategory: ${isLastCaveInCategory}, isLastCaveInPattern: ${isLastCaveInPattern}, 
-            pattern: ${pattern.name}, cave: ${caveNumber}/${totalCavesForPattern}`)
 
         const mapTemplate = selectTemplate(isFirstCaveInCategory, isLastCaveInCategory);
 
@@ -133,11 +130,8 @@ export function registerDungeonScenes(k: KCtx) {
         const [r, g, b] = ZONE_COLORS[randomNumber];
         k.setBackground(Math.floor(r * 0.15), Math.floor(g * 0.15), Math.floor(b * 0.15));
 
-        // Minion AI runs via k.onUpdate on game.root — that object is destroyed on scene change,
-        // so register a fresh handler whenever dungeon-run starts (dispose avoids stacking across caves).
         initEnemyManager(k)
 
-        // 3. Tile Building Logic (Unified)
         buildMap(k, mapTemplate, {
             floor: getFloorSprite(categoryName),
             bossName: isLastCaveInPattern ? pattern.name : null,

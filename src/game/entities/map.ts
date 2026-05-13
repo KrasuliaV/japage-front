@@ -1,9 +1,8 @@
 import type kaplay from 'kaplay'
 import { TILE_SIZE } from '../kaplay'
+import { getZoneVisual } from '@/game/config/zoneConfig'
 
 type KCtx = ReturnType<typeof kaplay>
-
-const floorAssets = ['floor-tiles', 'floor', 'field-pink', 'field-green']
 
 export function addOptimizedCollisions(k: KCtx, map: string[], targetChar: string, tag: string) {
     const activeStrips: Array<{ start: number, width: number, rowStart: number, height: number, obj?: any }> = [];
@@ -12,7 +11,6 @@ export function addOptimizedCollisions(k: KCtx, map: string[], targetChar: strin
         const line = map[row];
         const currentLineStrips: Array<{ start: number, width: number }> = [];
 
-        // --- Step 1: Identify horizontal strips in this row ---
         let startCol: number | null = null;
         for (let col = 0; col <= line.length; col++) {
             const char = line[col];
@@ -24,30 +22,24 @@ export function addOptimizedCollisions(k: KCtx, map: string[], targetChar: strin
             }
         }
 
-        // --- Step 2: Try to merge with active strips from previous rows ---
-        // Iterate backwards through activeStrips to manage removal
         for (let i = activeStrips.length - 1; i >= 0; i--) {
             const strip = activeStrips[i];
             const matchIndex = currentLineStrips.findIndex(s => s.start === strip.start && s.width === strip.width);
 
             if (matchIndex !== -1) {
-                // Found a match! Increment height and remove from current processing
                 strip.height += 1;
                 currentLineStrips.splice(matchIndex, 1);
             } else {
-                // No match found for this active strip anymore - render it and remove
                 renderCollision(k, strip, tag);
                 activeStrips.splice(i, 1);
             }
         }
 
-        // --- Step 3: Add any brand new strips to the active list ---
         currentLineStrips.forEach(s => {
             activeStrips.push({ ...s, rowStart: row, height: 1 });
         });
     }
 
-    // Final Pass: Render any remaining active strips at the bottom of the map
     activeStrips.forEach(s => renderCollision(k, s, tag));
 }
 
@@ -63,7 +55,6 @@ function renderCollision(k: KCtx, data: any, tag: string) {
 }
 
 export function getOuterWallFrame(map: string[], row: number, col: number) {
-    // const isOut = (r: number, c: number) => map[r]?.[c] === 'R';
     const isOut = (r: number, c: number) => {
         if (r < 0 || r >= map.length || c < 0 || c >= map[r].length) return true;
         return false;
@@ -190,15 +181,6 @@ export function getInnerCaveWallFrame(map: string[], row: number, col: number) {
     }
 }
 
-const getHash = (str: string) => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return Math.abs(hash);
-};
-
-export const getFloorSprite = (zone: string): string => {
-    const index = getHash(zone) % floorAssets.length;
-    return floorAssets[index];
-};
+export function getFloorSprite(zone: string): string {
+    return getZoneVisual(zone).floorSprite
+}

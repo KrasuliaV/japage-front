@@ -1,0 +1,1 @@
+C:/Users/krasv/VSCode/japage-front/CLAUDE.md

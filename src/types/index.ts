@@ -8,7 +8,7 @@ export const ALL_CATEGORIES = ['CREATIONAL', 'STRUCTURAL', 'BEHAVIORAL'] as cons
 
 // 2. Derive the type from the array's elements
 // export type Category = (typeof ALL_CATEGORIES)[number];
-export type SkillCategory = 'CREATIONAL' | 'STRUCTURAL' | 'BEHAVIORAL' | 'GENERAL'
+export type SkillCategory = string   // was: 'CREATIONAL' | 'STRUCTURAL' | 'BEHAVIORAL' | 'GENERAL'
 export type QuestionType = 'MULTIPLE_CHOICE' | 'PATTERN_RECOGNITION'
 export type AnswerType = 'CORRECT' | 'WRONG'
 export type ItemType = 'WEAPON' | 'ARMOR' | 'ACCESSORY'
@@ -162,7 +162,7 @@ export interface CharacterSkillResponse {
 export interface PatternResponse {
   id: string
   name: string
-  category: Category
+  category: string
   difficulty: number
   description: string
   refactoringGuruUrl: string

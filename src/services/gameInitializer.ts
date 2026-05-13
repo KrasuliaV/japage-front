@@ -50,13 +50,10 @@ export const GameInitializer = {
             }
 
             else if ('ADVENTURING' === state) {
-                console.log('[GameInitializer] Restoring adventuring progress:', progressState)
                 const zone = progressState.zone
                 const caveNumber = progressState.caveNumber
                 const defeatedCount = progressState.defeatedEnemiesPerCave
                 const bossDef = progressState.caveBossDefeated
-                // const spawnX = progressState.coordinateX
-                // const spawnY = progressState.coordinateY
 
                 const undefeatedMinions = Math.max(0, 5 - defeatedCount)
 

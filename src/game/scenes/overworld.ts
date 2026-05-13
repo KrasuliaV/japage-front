@@ -1,10 +1,11 @@
 import type kaplay from 'kaplay'
 import { TILE_SIZE, ZONE_COLORS } from '@/game/kaplay'
-import { SAFE_ZONE, ALL_CATEGORIES } from '@/types'
+import { SAFE_ZONE } from '@/types'
 import { useGameStore } from '@/stores/gameStore'
 import { createPlayer, setupPlayerMovement } from '@/game/entities/player'
 import { addPortal, portalCollide } from '@/game/entities/portal'
 import { addOptimizedCollisions, getOuterWallFrame, getInnerWallFrame } from '@/game/entities/map'
+import { getZoneVisual } from '@/game/config/zoneConfig'
 
 // ============================================================
 // Overworld Scene
@@ -92,7 +93,7 @@ export function registerOverworldScene(k: KCtx) {
           case 't': {
             k.add([k.sprite("tree-green"), k.pos(x, y), k.area(), k.body({ isStatic: true }), 'wall'])
             break;
-          };          
+          };
           // case 'Q': {
           //   k.add([k.sprite("dark-statue"), k.pos(x, y), k.area(), k.body({ isStatic: true }), 'statue'])
           //   break;
@@ -159,10 +160,16 @@ export function registerOverworldScene(k: KCtx) {
       }
     }
 
-    for (let i = 0; i < portalsCoordinates.length; i++) {
-      if (ALL_CATEGORIES[i] === undefined) break;
-      addPortal(k, portalsCoordinates[i].x, portalsCoordinates[i].y, ALL_CATEGORIES[i], ZONE_COLORS[1])
-    }
+    // ── Portals — driven by active categories from store ────────────────
+    // Only active categories get a portal; capped by available 'Y' slots.
+    const activeCategories = gameStore.categories.filter(c => c.isActive)
+
+    activeCategories.forEach((category, i) => {
+      if (i >= portalsCoordinates.length) return  // no more map slots
+      const { x, y } = portalsCoordinates[i]
+      const visual = getZoneVisual(category.name)
+      addPortal(k, x, y, category.name, visual.color)
+    })
 
     addOptimizedCollisions(k, OVERWORLD_MAP, 'R', 'wall');
     addOptimizedCollisions(k, OVERWORLD_MAP, 'W', 'water-barrier');

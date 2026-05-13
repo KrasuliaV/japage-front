@@ -6,6 +6,7 @@ import { TILE_SIZE, SCENES } from '../kaplay'
 import { SAFE_ZONE } from '@/types'
 import { loadZoneAssets } from '@/game/assets/assetLoader'
 import type { ZoneName } from '@/game/assets/zoneAssets'
+import { getZoneVisual } from '@/game/config/zoneConfig'
 
 type KCtx = ReturnType<typeof kaplay>
 
@@ -13,7 +14,7 @@ export function addPortal(
   k: KCtx,
   x: number,
   y: number,
-  zone: 'CREATIONAL' | 'STRUCTURAL' | 'BEHAVIORAL' | 'OVERWORLD',
+  zone: string,    // was: 'CREATIONAL' | 'STRUCTURAL' | 'BEHAVIORAL' | 'OVERWORLD'
   color: [number, number, number]
 ) {
   const portal = k.add([
@@ -50,15 +51,13 @@ export function addPortal(
     k.z(3),
   ])
 
-  const labels: Record<string, string> = {
-    CREATIONAL: 'Creational\nForest',
-    STRUCTURAL: 'Structural\nCastle',
-    BEHAVIORAL: 'Behavioral\nDungeon',
-    INITIAL: 'Home',
-  }
+  const visual = getZoneVisual(zone)
+  const labelText = zone === SAFE_ZONE
+    ? 'Home'
+    : visual.label.replace(' ', '\n')   // wrap long names for 2-line display
 
   k.add([
-    k.text(labels[zone] || zone, { size: 14, font: "'Nunito', sans-serif" }),
+    k.text(labelText, { size: 14, font: "'Nunito', sans-serif" }),
     k.outline(5, k.Color.BLACK),
     k.pos(x, y),
     k.color(255, 255, 255),

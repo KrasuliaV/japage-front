@@ -1,16 +1,17 @@
 import { useGameStore } from '@/stores/gameStore'
+import { getZoneVisual } from '@/game/config/zoneConfig'
 
-const ZONE_LABELS: Record<string, string> = {
-    CREATIONAL: '🌿 Entering Creational Forest...',
-    STRUCTURAL: '🏰 Entering Structural Castle...',
-    BEHAVIORAL: '☠  Entering Behavioral Dungeon...',
-}
+// const ZONE_LABELS: Record<string, string> = {
+//     CREATIONAL: '🌿 Entering Creational Forest...',
+//     STRUCTURAL: '🏰 Entering Structural Castle...',
+//     BEHAVIORAL: '☠  Entering Behavioral Dungeon...',
+// }
 
-const ZONE_COLORS: Record<string, string> = {
-    CREATIONAL: 'var(--color-hp-high)',
-    STRUCTURAL: 'var(--color-accent)',
-    BEHAVIORAL: 'var(--color-danger)',
-}
+// const ZONE_COLORS: Record<string, string> = {
+//     CREATIONAL: 'var(--color-hp-high)',
+//     STRUCTURAL: 'var(--color-accent)',
+//     BEHAVIORAL: 'var(--color-danger)',
+// }
 
 export function ZoneLoadingOverlay() {
     const isZoneLoading = useGameStore(s => s.isZoneLoading)
@@ -18,8 +19,11 @@ export function ZoneLoadingOverlay() {
 
     if (!isZoneLoading) return null
 
-    const label = (zoneTarget && ZONE_LABELS[zoneTarget]) ?? 'Loading...'
-    const color = (zoneTarget && ZONE_COLORS[zoneTarget]) ?? 'var(--color-accent)'
+    const visual = zoneTarget ? getZoneVisual(zoneTarget) : null
+    const label = visual
+        ? `${visual.emoji} Entering ${visual.label}...`
+        : 'Loading...'
+    const color = visual?.cssColor ?? 'var(--color-accent)' 
 
     return (
         <div

@@ -55,14 +55,10 @@ function AppInner() {
     initRef.current = true
     // This runs ONCE on mount
     const boot = async () => {
-      console.log('[App] 🚀 Boot started')
       try {
         const user = await restoreSession();
-        console.log('[App] ✓ Session restored:', user?.userId)
         if (user?.userId) {
-          console.log('[App] 🎮 Initializing game...')
           await initializeGame();
-          console.log('[App] ✓ Game initialized. Screen:', useGameStore.getState().currentScreen)
         } else {
           setScreen('login')
         }

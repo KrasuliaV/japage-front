@@ -23,11 +23,9 @@ export function initKaplay(canvas: HTMLCanvasElement, onReady: () => void) {
   _instance = k
   loadAllAssets(k)
   k.onLoad(() => {
-    console.log('[Kaplay] All assets loaded — ready')
     onReady()
   })
 
-  console.log('[Kaplay] ⏳ Initializing...')
   return k
 }
 
@@ -325,25 +323,6 @@ export function loadAllAssets(k: ReturnType<typeof kaplay>) {
     sliceY: 10,
   })
 
-  // k.loadSprite('portal-gate', '/assets/ninja-adventure/Items/Treasure/Portal.png')
-
-  // The Swirling Portal Core (Animated)
-  // k.loadSprite('portal-core', '/assets/ninja-adventure/FX/Magic/Circle/Blue.png', {
-  //   sliceX: 4,
-  //   anims: {
-  //     'active': { from: 0, to: 3, loop: true, speed: 10 },
-  //   },
-  // })
-
-  // Interactive Fountain (Citadel Pass)
-  // k.loadSprite('fountain', '/assets/ninja-adventure/Items/Interactive/Fountain.png', {
-  //   sliceX: 3,
-  //   anims: {
-  //     'flow': { from: 0, to: 2, loop: true, speed: 6 },
-  //   },
-  // })
-  console.log('[Kaplay] All assets loading started')
-
   return { TILE, PLAYER_FRAME, ENEMY_FRAME }
 }
 
@@ -354,9 +333,8 @@ export function loadAllAssets(k: ReturnType<typeof kaplay>) {
 export const SCENES = {
   LOADING: 'loading',
   OVERWORLD: 'overworld',
-  CREATIONAL_DUNGEON: 'dungeon-creational',
-  STRUCTURAL_DUNGEON: 'dungeon-structural',
-  BEHAVIORAL_DUNGEON: 'dungeon-behavioral'
+  DUNGEON: 'dungeon',
+  BATTLE: 'battle',
 } as const
 
 export type SceneName = typeof SCENES[keyof typeof SCENES]

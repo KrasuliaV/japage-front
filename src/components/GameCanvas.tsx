@@ -20,7 +20,6 @@ async function navigateTo(
   categories: ReturnType<typeof useGameStore.getState>['categories']
 ) {
   if (currentScreen === 'overworld') {
-    console.log('[GameCanvas] → navigating to overworld')
     k.go(SCENES.OVERWORLD)
     return
   }
@@ -35,7 +34,6 @@ async function navigateTo(
         .find(cat => cat.name === targetCave.zone)
         ?.patterns.find(p => p.id === targetCave.patternId)
 
-      console.log(`[GameCanvas] → navigating to dungeon: ${targetCave.zone}, pattern: ${pattern?.sequenceNumber}, cave: ${targetCave.caveNumber}`)
       k.go('dungeon-run', targetCave.zone, pattern?.sequenceNumber, targetCave.caveNumber)
     } catch (err) {
       console.error('[GameCanvas] Failed to load zone assets:', err)
@@ -63,9 +61,6 @@ export function GameCanvas() {
     const existingInstance = getKaplayInstance()
 
     if (existingInstance && areScenesReady()) {
-      // GameCanvas was remounted (logout→login) but Kaplay survived.
-      // Scenes are already registered. Navigate immediately.
-      console.log('[GameCanvas] Remounted — scenes already registered, navigating.')
       const { currentScreen, targetCave, categories } = useGameStore.getState()
       navigateTo(existingInstance, currentScreen, targetCave, categories)
       return
@@ -86,29 +81,19 @@ export function GameCanvas() {
       k.scene('__empty__', () => { })
       registerOverworldScene(k)
       registerDungeonScenes(k)
-
-      // Mark at module level — survives component unmount
       markScenesReady()
-      console.log('[GameCanvas] Scenes registered, ready to navigate.')
 
-      // Navigate using current store state — not stale closure values
       const { currentScreen, targetCave, categories } = useGameStore.getState()
       navigateTo(k, currentScreen, targetCave, categories)
     })
-    return () => {
-      // This runs when the user logs out and GameCanvas unmounts
-      console.log('[GameCanvas] Unmounting - cleaning up Kaplay');
-      // Optionally call destroyKaplay() here if you want a fresh start every time
-    };
+    return () => {};
   }, [])
 
   useEffect(() => {
     const k = getKaplayInstance()
     if (!k) return
 
-    console.log('[GameCanvas] Navigation trigger:', currentScreen);
-    
-    if (!areScenesReady()) return   // onReady hasn't fired — Effect 1 will handle it
+    if (!areScenesReady()) return
 
     navigateTo(k, currentScreen, targetCave, categories)
   }, [currentScreen, targetCave, categories])
@@ -118,8 +103,6 @@ export function GameCanvas() {
   useEffect(() => {
     if (!isGameScreen) return
 
-    // Kaplay runs with global:false, so keyboard input depends on canvas focus.
-    // After auth/UI actions, focus can stay on a button instead of the canvas.
     const focusCanvas = () => canvasRef.current?.focus()
 
     focusCanvas()

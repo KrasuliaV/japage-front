@@ -1,5 +1,5 @@
 import type kaplay from 'kaplay'
-import { getSpritesForZone, type ZoneName } from './zoneAssets'
+import { getSpritesForZone } from './zoneAssets'
 
 type KCtx = ReturnType<typeof kaplay>
 
@@ -64,34 +64,14 @@ export async function loadEnemySprite(k: KCtx, spriteName: string): Promise<void
  *
  * @returns Promise that resolves when ALL sprites for the zone are ready.
  */
-export async function loadZoneAssets(k: KCtx, zone: ZoneName): Promise<void> {
-
-    // Remove
-    // ------------------------
-    const start = performance.now()
-    // ------------------------
-
+export async function loadZoneAssets(k: KCtx, zone: string): Promise<void> {
     const sprites = getSpritesForZone(zone)
-
-    // Filter to only unloaded sprites before kicking off network requests
     const unloaded = sprites.filter(name => !loadedSprites.has(name))
 
     if (unloaded.length === 0) {
-        console.log(`[AssetLoader] Zone ${zone}: all sprites already loaded, skipping.`)
         return
     }
-
-    console.log(`[AssetLoader] Zone ${zone}: loading ${unloaded.length} sprite(s):`, unloaded)
-
     await Promise.all(unloaded.map(name => loadEnemySprite(k, name)))
-
-    // Remove
-    // ------------------------
-    const elapsed = (performance.now() - start).toFixed(0)
-    console.log(`[AssetLoader] Zone ${zone}: loaded ${unloaded.length} sprites in ${elapsed}ms`)
-    // ------------------------
-
-    console.log(`[AssetLoader] Zone ${zone}: ready.`)
 }
 
 /**

@@ -48,13 +48,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     const sessionTokenAtLogoutStart = get().token
 
-    // try {
-    console.log('[Auth] 🚪 Logout initiated')
-
-    // Attempt backend logout (non-critical)
     try {
       await logoutApi()
-      console.log('[Auth] ✓ Backend logout succeeded')
     } catch (err) {
       console.warn('[Auth] ⚠ Backend logout failed (non-blocking):', err)
     } finally {
@@ -67,11 +62,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return
     }
 
-    // Always clear client state
     safeResetScene()
     tokenStore.clear()
     useGameStore.getState().reset()
-    useGameStore.getState().setScreen('login')  // ← Force login screen
+    useGameStore.getState().setScreen('login')
 
     set({
       token: null,
@@ -79,35 +73,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: false,
       isLoading: false,
     })
-
-    console.log('[Auth] ✓ Logout complete')
   },
-  // },
 
-  // logout: async () => {
-  //   try {
-  //     // Attempt to notify backend, but don't fail if it errors
-  //     await logoutApi()
-  //     console.log('[Auth] Backend logout succeeded')
-  //   } catch (err) {
-  //     console.warn('[Auth] Backend logout failed (non-blocking):', err)
-  //     // Continue anyway — client-side cleanup is what matters
-  //   } finally {
-  //     tokenStore.clear()
-  //     const gameState = useGameStore.getState()
-  //     gameState.reset()
-  //     gameState.setScreen('login')
-  //     set({
-  //       token: null,
-  //       userInfo: null,
-  //       isAuthenticated: false,
-  //       isLoading: false,
-  //     })
-  //     console.log('[Auth] Logout complete')
-  //   }
-  // },
-
-  // Called on app load — tries to restore session via cookie
   restoreSession: async () => {
     set({ isLoading: true })
     try {
@@ -132,14 +99,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 }))
 
-// Listen for auth:logout events dispatched by axios interceptor
-// window.addEventListener('auth:logout', () => {
-//   useAuthStore.getState().logout()
-// })
 window.addEventListener('auth:logout', () => {
   const { isAuthenticated } = useAuthStore.getState()
   if (isAuthenticated) {
-    console.log('[Auth] 🔐 401 interceptor triggered logout')
     useAuthStore.getState().logout()
   }
 })
