@@ -15,8 +15,10 @@ export function createDungeonPlayer(k: KCtx, pos: ReturnType<typeof k.vec2>) {
 }
 
 function createAnyPlayer(k: KCtx, pos: ReturnType<typeof k.vec2>, offset: Vec2, w: number, h: number) {
+  const spriteKey = getCurrentPlayerSpriteKey()
+
   return k.add([
-    k.sprite('player-idle', { anim: 'idle-down' }),
+    k.sprite(spriteKey, { anim: 'idle-down' }),
     k.pos(pos),
     k.scale(PLAYER_SCALE),
     k.area({ shape: new k.Rect(offset, w, h) }),
@@ -28,8 +30,20 @@ function createAnyPlayer(k: KCtx, pos: ReturnType<typeof k.vec2>, offset: Vec2, 
       direction: 'down' as 'down' | 'up' | 'left' | 'right',
       isMoving: false,
       speed: PLAYER_SPEED,
+      spriteKey,
     },
   ])
+}
+
+function getCurrentPlayerSpriteKey(): 'player-wizard' | 'player-rogue' | 'player-knight' {
+  const className = useGameStore.getState().character?.characterClass?.name?.toLowerCase() ?? ''
+
+  if (className.includes('wizard')) return 'player-wizard'
+  if (className.includes('rogue')) return 'player-rogue'
+  if (className.includes('knight')) return 'player-knight'
+
+  // Safe default for existing saves or unexpected backend class names.
+  return 'player-knight'
 }
 // ============================================================
 // Player movement
@@ -66,16 +80,13 @@ export function setupPlayerMovement(
     try {
       const walkAnim = `walk-${player.direction}`
       if (player.getCurAnim()?.name !== walkAnim) {
-        player.use(k.sprite('player-walk'))
         player.play(walkAnim)
       }
     } catch {/* sprite switch in progress */ }
   } else {
-    // Switch to idle spritesheet
     try {
       const idleAnim = `idle-${player.direction}`
       if (player.getCurAnim()?.name !== idleAnim) {
-        player.use(k.sprite('player-idle'))
         player.play(idleAnim)
       }
     } catch {/* sprite switch in progress */ }

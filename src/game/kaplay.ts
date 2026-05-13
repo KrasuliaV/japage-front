@@ -117,11 +117,14 @@ export function loadAllAssets(k: ReturnType<typeof kaplay>) {
     sliceX: 4,
     sliceY: 7,
     anims: {
-      'idle-down': 0,
-      'walk-down': { from: 0, to: 3, loop: true },
-      'walk-left': { from: 4, to: 7, loop: true },
-      'walk-right': { from: 8, to: 11, loop: true },
-      'walk-up': { from: 12, to: 15, loop: true },
+      'idle-down': { from: 0, to: 0, loop: true },
+      'idle-left': { from: 4, to: 4, loop: true },
+      'idle-right': { from: 8, to: 8, loop: true },
+      'idle-up': { from: 12, to: 12, loop: true },
+      'walk-down': { from: 0, to: 3, loop: true, speed: 8 },
+      'walk-left': { from: 4, to: 7, loop: true, speed: 8 },
+      'walk-right': { from: 8, to: 11, loop: true, speed: 8 },
+      'walk-up': { from: 12, to: 15, loop: true, speed: 8 },
     }
   }
 
