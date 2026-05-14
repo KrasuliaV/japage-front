@@ -12,6 +12,7 @@ import { createPlayer, setupPlayerMovement } from '@/game/entities/player'
 import { characterApi } from '@/api/game'
 import { PatternOption } from '@/types'
 import { MINION_COUNT, SAFE_SPAWN_RADIUS_TILES } from '../constants'
+import { SpriteConfig } from '../config/zoneConfig'
 
 type KCtx = ReturnType<typeof kaplay>
 
@@ -182,13 +183,18 @@ function selectTemplate(isFirstCaveInCategory: boolean, isLastCaveInCategory: bo
     }
 }
 
+function getSpriteData(spriteInput: SpriteConfig) {
+    return { name: spriteInput.name, frame: spriteInput.frame ?? 0 };
+}
+
 function buildMap(k: KCtx, template: string[],
     assets: {
-        floor: string, bossName: string | null, hasOverworldPortal: boolean,
+        floor: SpriteConfig, bossName: string | null, hasOverworldPortal: boolean,
         caveNumber: number, categoryName: string, pattern: PatternOption
     }) {
     const store = useGameStore.getState()
     const targetCave = store.targetCave
+    const { name, frame } = getSpriteData(assets.floor);
 
     let spawnX: number | undefined
     let spawnY: number | undefined
@@ -249,7 +255,8 @@ function buildMap(k: KCtx, template: string[],
                 [
                     // k.sprite("tileset-floor", { frame: 88 }),
                     // k.sprite("tileset-floor", { frame: 242 }),
-                    k.sprite("tileset-floor", { frame: 177 }),
+                    // k.sprite("tileset-floor", { frame: 177 }),
+                    k.sprite(name, { frame }),
                     k.pos(col * TILE_SIZE, row * TILE_SIZE),
                     k.z(-1),
                 ])

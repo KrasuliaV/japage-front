@@ -16,19 +16,17 @@
  * Adding a new category on the backend requires NO frontend code changes —
  * it will automatically receive a deterministic color/label from the fallback.
  */
+export interface SpriteConfig {
+  name: string;
+  frame?: number;
+}
 
 export interface ZoneVisual {
-  /** Display label shown in HUD and loading overlay */
   label: string
-  /** Emoji prefix for the label */
   emoji: string
-  /** RGB tuple used by Kaplay portal tint and loading overlay */
   color: [number, number, number]
-  /** CSS color string (derived from `color`) used by React components */
   cssColor: string
-  /** Floor sprite asset key used inside this zone's dungeon */
-  floorSprite: string
-  /** Enemy sprite names that spawn as minions in this zone */
+  floorSprite: SpriteConfig;
   enemySprites: string[]
 }
 
@@ -42,7 +40,7 @@ const ZONE_VISUAL_REGISTRY: Record<string, ZoneVisual> = {
     emoji: '🌿',
     color: [100, 200, 100],
     cssColor: 'var(--color-hp-high)',
-    floorSprite: 'field-green',
+    floorSprite: { name: "field-green", frame: 0 },
     enemySprites: ['GoldStatue', 'Monk', 'Sultan', 'Caveman', 'Spirit'],
   },
   STRUCTURAL: {
@@ -50,7 +48,7 @@ const ZONE_VISUAL_REGISTRY: Record<string, ZoneVisual> = {
     emoji: '🏰',
     color: [100, 150, 220],
     cssColor: 'var(--color-accent)',
-    floorSprite: 'floor-tiles',
+    floorSprite: { name: "floor-tiles", frame: 23 },
     enemySprites: [
       'RobotGrey', 'Knight', 'GreenPig', 'Vampire',
       'Noble', 'NinjaGray', 'NinjaMasked',
@@ -61,7 +59,7 @@ const ZONE_VISUAL_REGISTRY: Record<string, ZoneVisual> = {
     emoji: '☠',
     color: [180, 80, 180],
     cssColor: 'var(--color-danger)',
-    floorSprite: 'field-pink',
+    floorSprite: { name: "field-pink", frame: 0 },
     enemySprites: [
       'SkeletonDemon', 'SamuraiRed', 'Skeleton', 'Shaman',
       'Tengu', 'NinjaMageBlack', 'DemonGreen', 'NinjaDark',
