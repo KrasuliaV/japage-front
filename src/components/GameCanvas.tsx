@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type kaplay from 'kaplay'
 
 import {
@@ -56,6 +56,15 @@ export function GameCanvas() {
   const currentScreen = useGameStore(s => s.currentScreen)
   const targetCave = useGameStore(s => s.targetCave)
   const categories = useGameStore(s => s.categories)
+  const isGamePaused = useGameStore(s => s.isGamePaused)
+
+  const isGameScreen = ['overworld', 'dungeon', 'battle'].includes(currentScreen)
+
+  const focusCanvas = useCallback(() => {
+    if (!isGameScreen || isGamePaused) return
+
+    canvasRef.current?.focus({ preventScroll: true })
+  }, [isGamePaused, isGameScreen])
 
   useEffect(() => {
     const existingInstance = getKaplayInstance()
@@ -98,17 +107,60 @@ export function GameCanvas() {
     navigateTo(k, currentScreen, targetCave, categories)
   }, [currentScreen, targetCave, categories])
 
-  const isGameScreen = ['overworld', 'dungeon', 'battle'].includes(currentScreen)
-
   useEffect(() => {
     if (!isGameScreen) return
 
-    const focusCanvas = () => canvasRef.current?.focus()
-
     focusCanvas()
+    const animationFrame = window.requestAnimationFrame(focusCanvas)
     const timer = window.setTimeout(focusCanvas, 0)
-    return () => window.clearTimeout(timer)
-  }, [isGameScreen, currentScreen])
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame)
+      window.clearTimeout(timer)
+    }
+  }, [focusCanvas, isGameScreen, currentScreen, isGamePaused])
+
+  useEffect(() => {
+    if (!isGameScreen || isGamePaused) return
+
+    const isTextEntryTarget = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return false
+
+      return Boolean(
+        target.closest('input, textarea, select, [contenteditable="true"], [data-keep-focus="true"]'),
+      )
+    }
+
+    const isInteractiveTarget = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return false
+
+      return Boolean(target.closest('button, a, [role="button"], input, textarea, select, [contenteditable="true"], [data-keep-focus="true"]'))
+    }
+
+    const movementKeys = new Set(['arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'a', 'd', 'w', 's'])
+
+    const refocusForGameInput = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+      if (!movementKeys.has(event.key.toLowerCase())) return
+      if (isTextEntryTarget(event.target)) return
+
+      focusCanvas()
+    }
+
+    const refocusAfterBackgroundPointer = (event: PointerEvent) => {
+      if (isInteractiveTarget(event.target)) return
+
+      window.requestAnimationFrame(focusCanvas)
+    }
+
+    window.addEventListener('keydown', refocusForGameInput, true)
+    window.addEventListener('pointerdown', refocusAfterBackgroundPointer, true)
+
+    return () => {
+      window.removeEventListener('keydown', refocusForGameInput, true)
+      window.removeEventListener('pointerdown', refocusAfterBackgroundPointer, true)
+    }
+  }, [focusCanvas, isGamePaused, isGameScreen])
 
   return (
     <canvas

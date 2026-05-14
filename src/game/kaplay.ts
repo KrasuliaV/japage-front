@@ -59,8 +59,19 @@ export function destroyKaplay() {
 }
 
 export function releaseToGame() {
-  const canvas = document.querySelector('canvas');
-  canvas?.focus()
+  const focusGameCanvas = () => {
+    const activeElement = document.activeElement
+
+    if (activeElement instanceof HTMLElement) {
+      activeElement.blur()
+    }
+
+    document.querySelector<HTMLCanvasElement>('canvas[tabindex]')?.focus({ preventScroll: true })
+  }
+
+  focusGameCanvas()
+  window.requestAnimationFrame(focusGameCanvas)
+  window.setTimeout(focusGameCanvas, 0)
 }
 
 // ============================================================
