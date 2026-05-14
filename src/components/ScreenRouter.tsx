@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useAuthStore } from '@/stores/authStore'
 import { useGameStore } from '@/stores/gameStore'
 import { validateToken } from '@/api/auth'
@@ -11,6 +11,7 @@ import { ChestRewardModal } from '@/components/chest/ChestRewardModal'
 import { Login } from '@/pages/Login'
 import { Signup } from '@/pages/Signup'
 import { CharacterCreate } from '@/pages/CharacterCreate'
+import { GlobalErrorBoundary } from '@/components/common/GlobalErrorBoundary'
 
 export function ScreenRouter() {
     const isAuthenticated = useAuthStore(s => s.isAuthenticated)
@@ -40,7 +41,7 @@ export function ScreenRouter() {
     // One GameCanvas instance for the whole app lifetime. Kaplay binds to a specific
     // DOM canvas; if GameCanvas unmounted/remounted across router branches, the
     // singleton would keep rendering to a detached canvas (black screen after logout→login).
-    let overlay: React.ReactNode
+    let overlay: ReactNode
 
     if (!isAuthenticated || currentScreen === 'login' || currentScreen === 'signup') {
         overlay = (
@@ -73,9 +74,13 @@ export function ScreenRouter() {
 
     return (
         <>
-            {/* display:none when not on a game screen — see GameCanvas */}
-            <GameCanvas />
-            {overlay}
+            <GlobalErrorBoundary boundaryName="Kaplay Game Engine" localized>
+                {/* display:none when not on a game screen, see GameCanvas */}
+                <GameCanvas />
+            </GlobalErrorBoundary>
+            <GlobalErrorBoundary boundaryName="Screen Overlay" localized>
+                {overlay}
+            </GlobalErrorBoundary>
         </>
     )
 }
