@@ -7,7 +7,7 @@ import kaplay from 'kaplay'
 // ============================================================
 
 let _instance: ReturnType<typeof kaplay> | null = null
-let _scenesReady = false 
+let _scenesReady = false
 
 export function initKaplay(canvas: HTMLCanvasElement, onReady: () => void) {
   const k = kaplay({
@@ -15,7 +15,7 @@ export function initKaplay(canvas: HTMLCanvasElement, onReady: () => void) {
     width: Number(import.meta.env.VITE_GAME_WIDTH) || 1280,
     height: Number(import.meta.env.VITE_GAME_HEIGHT) || 720,
     letterbox: true,
-    background: [10, 14, 26],  
+    background: [10, 14, 26],
     debug: true,
     global: false,
     scale: 1,
@@ -52,7 +52,7 @@ export function destroyKaplay() {
   if (_instance) {
     // Kaplay doesn't always have a formal 'destroy', 
     // but we must clear our internal tracking and stop the loop.
-    _instance.quit(); 
+    _instance.quit();
     _instance = null;
     _scenesReady = false;
   }
@@ -261,14 +261,7 @@ export function loadAllAssets(k: ReturnType<typeof kaplay>) {
     'field-pink': { x: 24, y: 150, width: TILE_SIZE, height: TILE_SIZE },
     'field-white': { x: 24, y: 198, width: TILE_SIZE, height: TILE_SIZE },
   })
-  k.loadSpriteAtlas('/assets/tilesets/floor.png', {
-    'floor': {
-      x: TILE_SIZE,
-      y: TILE_SIZE,
-      width: TILE_SIZE * 2,
-      height: TILE_SIZE * 2,
-    },
-  });
+  
   k.loadSpriteAtlas('/assets/tilesets/TilesetDungeon.png', {})
   k.loadSpriteAtlas('/assets/tilesets/TilesetElement.png', {
     'chest-close': { x: 96, y: 0, width: TILE_SIZE, height: TILE_SIZE },
@@ -280,6 +273,21 @@ export function loadAllAssets(k: ReturnType<typeof kaplay>) {
     'transition': { x: 144, y: 256, width: TILE_SIZE, height: TILE_SIZE },
     'light-statue': { x: 80, y: 272, width: TILE_SIZE * 2, height: TILE_SIZE * 2 },
     'dark-statue': { x: 80, y: 336, width: TILE_SIZE * 2, height: TILE_SIZE * 2 },
+  })
+  k.loadSpriteAtlas('/assets/tilesets/Assets_source.png', {
+    'dungeon-core': { x: 462, y: 0, width: TILE_SIZE * 5, height: TILE_SIZE * 6 },
+    'golden-sphinx': { x: 526, y: 96, width: TILE_SIZE * 5, height: TILE_SIZE * 6 },
+    'fountain-basin': { x: 278, y: 0, width: TILE_SIZE * 5, height: TILE_SIZE * 6 },
+    'bear-tree': { x: 226, y: 304, width: TILE_SIZE * 4, height: TILE_SIZE * 5 },
+    'tree2': { x: 162, y: 304, width: TILE_SIZE * 4, height: TILE_SIZE * 5 },
+    'tree-mashroom': { x: 98, y: 304, width: TILE_SIZE * 4, height: TILE_SIZE * 5 },
+    'blue-tree': { x: 32, y: 304, width: TILE_SIZE * 4, height: TILE_SIZE * 5 },
+
+    // 1x2 Tile Objects (16x32 px)
+    'demon-pillar': { x: 320, y: 0, width: TILE_SIZE, height: TILE_SIZE * 2 },
+    'snake-pillar': { x: 352, y: 0, width: TILE_SIZE, height: TILE_SIZE * 2 },
+    'dungeon-banner': { x: 320, y: 64, width: TILE_SIZE, height: TILE_SIZE * 2 },
+    'tall-brazier': { x: 352, y: 64, width: TILE_SIZE, height: TILE_SIZE * 2 },
   })
 
   // ── UI sprites ────────────────────────────────────────────

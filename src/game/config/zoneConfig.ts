@@ -48,7 +48,8 @@ const ZONE_VISUAL_REGISTRY: Record<string, ZoneVisual> = {
     emoji: '🏰',
     color: [100, 150, 220],
     cssColor: 'var(--color-accent)',
-    floorSprite: { name: "floor-tiles", frame: 23 },
+    // floorSprite: { name: "floor-tiles", frame: 23 },
+    floorSprite: { name: "tileset-floor", frame: 188 },
     enemySprites: [
       'RobotGrey', 'Knight', 'GreenPig', 'Vampire',
       'Noble', 'NinjaGray', 'NinjaMasked',
@@ -95,7 +96,7 @@ const FALLBACK_CSS = [
 ]
 
 const FALLBACK_FLOOR_SPRITES = [
-  'floor-tiles', 'field-green', 'field-pink', 'floor', 'field-white', 'field-light-green',
+  'floor-tiles', 'field-green', 'field-pink', 'field-white', 'field-light-green',
 ]
 
 const FALLBACK_ENEMY_POOL = [

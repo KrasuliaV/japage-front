@@ -20,10 +20,10 @@ const DUNGEON_MAP_INITIAL = [
     'RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
     'R...W.........................................W...R',
     'R...W.......c.................................W...R',
-    'R...W.......c...........................ccc...W...R',
+    'R...W.......c...........................ccc...W.M.R',
     'R...W..............c..........................W...R',
     'R...W.........................................W...R',
-    'R...W...........................G.............W...R',
+    'R.>.W...........................G.............W...R',
     'RWWWW.......................................T.WWWWR',
     'R................G.........................Tt.....E',
     'R.................................................E',
@@ -33,10 +33,10 @@ const DUNGEON_MAP_INITIAL = [
     'RWWWW.......................................T.WWWWR',
     'R...W........................G................W...R',
     'R...W........................G................W...R',
-    'R...W......cc......c..........................W...R',
+    'R...W......cc......c..........................W.<.R',
     'R...W.....cc.................G................W...R',
     'R...W..............c..........................W...R',
-    'R...W.....i...................................W...R',
+    'R.N.W.....i...................................W...R',
     'RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR',
 ]
 
@@ -278,6 +278,34 @@ function buildMap(k: KCtx, template: string[],
                     ]);
                     break;
                 };
+                case '>': {
+                    const offsetX = TILE_SIZE / 2;
+                    const offsetY = TILE_SIZE * 1.0;
+                    k.add([
+                        k.sprite("dungeon-core"),
+                        k.pos((col * TILE_SIZE) + offsetX, (row * TILE_SIZE) + offsetY),
+                        k.area(),
+                        k.body({ isStatic: true }),
+                        k.anchor("bot"),
+                        k.z(100),
+                        'wall'])
+
+                    break;
+                };
+                case 'N': {
+                    const offsetX = TILE_SIZE / 2;
+                    const offsetY = TILE_SIZE * 1.0;
+                    k.add([
+                        k.sprite("blue-tree"), 
+                        k.pos((col * TILE_SIZE) + offsetX, (row * TILE_SIZE) + offsetY), 
+                        k.area(), 
+                        k.body({ isStatic: true }),
+                        k.anchor("bot"),
+                        k.z(100),
+                        'wall'])
+
+                    break;
+                };
                 case 'W': {
                     k.add([
                         k.sprite("tileset-interior", { frame: getInnerCaveWallFrame(template, row, col) }),
@@ -380,7 +408,7 @@ function buildMap(k: KCtx, template: string[],
 
 function spawnPlayer(k: KCtx, playerSpawn: ReturnType<typeof k.vec2>) {
     const player = createPlayer(k, playerSpawn);
-    
+
     k.onUpdate(() => {
         const isPaused = useGameStore.getState().isGamePaused
         player.paused = isPaused

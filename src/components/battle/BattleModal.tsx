@@ -138,10 +138,7 @@ export function BattleModal() {
         setTimeout(async () => {
           setPhase('ended')
           const currentState = useGameStore.getState()
-          const didWin = result.battleResult?.status === 'WON'
-          if (didWin) {
-            currentState.onBattleWon?.()
-          }
+          currentState.onBattleWon?.()
 
           if (character?.id && activeBattle?.id) {
             // if (result.battleResult && character?.id && activeBattle?.id) {
